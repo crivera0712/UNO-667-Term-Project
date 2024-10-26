@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UNO - Lobby</title>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Righteous&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/utils.css">
+    <link rel="stylesheet" href="/css/components/menu.css">
+    <style>
+        .lobby-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            backdrop-filter: blur(10px);
+        }
+
+        .lobby-section {
+            margin-bottom: 2rem;
+        }
+
+        .lobby-title {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #ff6b6b;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #fff;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-size: 1rem;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #ff6b6b;
+        }
+
+        .game-list {
+            display: grid;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .game-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .game-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .game-id {
+            font-family: 'Courier New', monospace;
+            color: #ff6b6b;
+        }
+
+        .player-count {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .join-button {
+            padding: 0.5rem 1rem;
+            background: #ff6b6b;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .join-button:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+        }
+
+        .error-message {
+            color: #ff5252;
+            margin-top: 0.5rem;
+            display: none;
+        }
+
+        .success-message {
+            color: #00b09b;
+            margin-top: 0.5rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="title-container">
+            <h1 class="title">UNO Lobby</h1>
+        </div>
+
+        <div class="lobby-container">
+            <div class="lobby-section">
+                <h2 class="lobby-title">Join Game</h2>
+                <div class="input-group">
+                    <label for="playerName">Your Name</label>
+                    <input type="text" id="playerName" placeholder="Enter your name">
+                </div>
+                <div class="input-group">
+                    <label for="gameId">Game ID</label>
+                    <input type="text" id="gameId" placeholder="Enter game ID">
+                </div>
+                <button class="menu-button" onclick="joinGame()">Join Game</button>
+                <div id="joinError" class="error-message"></div>
+            </div>
+
+            <div class="lobby-section">
+                <h2 class="lobby-title">Create New Game</h2>
+                <button class="menu-button" onclick="createGame()">Create Game</button>
+                <div id="createSuccess" class="success-message"></div>
+            </div>
+
+            <div class="lobby-section">
+                <h2 class="lobby-title">Active Games</h2>
+                <div id="gameList" class="game-list">
+                    <!-- Active games will be listed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket;
+        let currentGameId = null;
+
+        function showError(message) {
+            const errorDiv = document.getElementById('joinError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('createSuccess');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        // Create game function
+        async function createGame() {
+            const playerName = document.getElementById('playerName').value.trim();
+            if (!playerName) {
+                showError('Please enter your name first');
+                return;
+            }
+
+            try {
+                const response = await fetch('/create-game', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ playerName })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to create game');
+                }
+
+                showSuccess(`Game created! Your game ID is: ${data.gameId}`);
+                currentGameId = data.gameId;
+                if (data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    showError('Invalid response from server');
+                }
+            } catch (error) {
+                console.error('Error creating game:', error);
+                showError(error.message || 'Failed to create game');
+            }
+        }
+
+        // Join game function
+        async function joinGame(gameIdParam) {
+            const playerName = document.getElementById('playerName').value.trim();
+            const gameId = gameIdParam || document.getElementById('gameId').value.trim();
+
+            if (!playerName) {
+                showError('Please enter your name first');
+                return;
+            }
+
+            if (!gameId) {
+                showError('Please enter a game ID');
+                return;
+            }
+
+            try {
+                const response = await fetch('/join-game', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        gameId: gameId,
+                        playerName: playerName
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to join game');
+                }
+
+                if (data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    showError('Invalid response from server');
+                }
+            } catch (error) {
+                console.error('Error joining game:', error);
+                showError(error.message || 'Failed to join game');
+            }
+        }
+
+        // Update game list
+        function updateGameList(games) {
+            const gameList = document.getElementById('gameList');
+            if (games && games.length > 0) {
+                gameList.innerHTML = games.map(game => `
+                    <div class="game-item">
+                        <div class="game-info">
+                            <div class="game-id">Game ID: ${game.id}</div>
+                            <div class="player-count">${game.playerCount}/4 Players</div>
+                        </div>
+                        <button class="join-button" onclick="joinGame('${game.id}')">Join</button>
+                    </div>
+                `).join('');
+            } else {
+                gameList.innerHTML = '<p>No active games available.</p>';
+            }
+        }
+
+        // Poll for active games every 5 seconds
+        async function pollActiveGames() {
+            try {
+                const response = await fetch('/game-list');
+                const data = await response.json();
+                updateGameList(data.games);
+            } catch (error) {
+                console.error('Error fetching game list:', error);
+            }
+        }
+
+        // Initial load
+        window.addEventListener('load', () => {
+            // Start polling for active games
+            pollActiveGames();
+            setInterval(pollActiveGames, 5000);
+        });
+    </script>
+</body>
+</html>

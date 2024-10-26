@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UNO - Waiting Room</title>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Righteous&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- Styles -->
+    <link rel="stylesheet" type="text/css" href="/css/base.css">
+    <link rel="stylesheet" type="text/css" href="/css/utils.css">
+    <link rel="stylesheet" href="/css/components/waiting-room.css">
+<body>
+    <div class="container">
+        <div class="title-container">
+            <h1 class="title">Waiting Room</h1>
+        </div>
+
+        <div class="waiting-room">
+            <div class="room-info">
+                <div class="game-id-container">
+                    <div class="game-id" onclick="copyGameId('<%= gameId %>')">
+                        <i class="fas fa-copy"></i> <%= gameId %>
+                    </div>
+                </div>
+                <p class="share-text">Share this ID with your friends to join!</p>
+                <div id="playerCount" class="player-counter">1/4 Players</div>
+            </div>
+
+            <div class="loading-container">
+                <div class="loading-spinner"></div>
+                <div class="waiting-message">Waiting for players...</div>
+            </div>
+
+            <div class="player-list" id="playerList">
+                <!-- Players will be added here dynamically -->
+            </div>
+
+            <div class="chat-container" id="chatContainer">
+                <div class="chat-messages" id="chatMessages"></div>
+                <div class="chat-input-container">
+                    <input type="text" id="chatInput" placeholder="Type a message..." maxlength="100">
+                    <button onclick="sendMessage()" class="chat-send-btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="controls">
+                <% if (isHost) { %>
+                    <button class="btn btn-primary" onclick="startGame()" id="startGameBtn" disabled>
+                        <i class="fas fa-play"></i> Start Game
+                    </button>
+                <% } %>
+                <button class="btn btn-secondary" onclick="leaveGame()">
+                    <i class="fas fa-sign-out-alt"></i> Leave Room
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        const gameId = '<%= gameId %>';
+        const playerId = '<%= playerId %>';
+        const playerName = '<%= playerName %>';
+        const isHost = Boolean('<%= isHost %>');
+        let lastMessageTime = 0;
+
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        function copyGameId(id) {
+            navigator.clipboard.writeText(id)
+                .then(() => {
+                    showNotification('Game ID copied to clipboard!');
+                })
+                .catch(err => {
+                    console.error('Failed to copy:', err);
+                    showNotification('Failed to copy Game ID');
+                });
+        }
+
+        function updatePlayerList(players) {
+            const playerList = document.getElementById('playerList');
+            playerList.innerHTML = players.map(player => `
+                <div class="player-card ${player.host ? 'host' : ''} ${player.id === playerId ? 'current-player' : ''}">
+                    <div class="player-avatar">
+                        ${player.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div class="player-name">${player.name}</div>
+                    <div class="player-status">
+                        ${player.host ? '<i class="fas fa-crown"></i> Host' :
+                          player.ready ? '<i class="fas fa-check"></i> Ready' : 'Player'}
+                    </div>
+                </div>
+            `).join('');
+
+            const countEl = document.getElementById('playerCount');
+            countEl.innerHTML = `<i class="fas fa-users"></i> ${players.length}/4 Players`;
+
+            const waitingMessage = document.querySelector('.waiting-message');
+            waitingMessage.textContent = players.length >= 2 ? 'Ready to start!' : 'Waiting for players...';
+
+            if (isHost) {
+                const startButton = document.getElementById('startGameBtn');
+                startButton.disabled = players.length < 2;
+            }
+        }
+
+        async function startGame() {
+            try {
+                const response = await fetch('/start-game', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ gameId, playerId })
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to start game');
+                }
+
+                if (data.redirect) {
+                    window.location.href = data.redirect;
+                }
+            } catch (error) {
+                console.error('Error starting game:', error);
+                showNotification('Failed to start game. Please try again.');
+            }
+        }
+
+        function leaveGame() {
+            if (confirm('Are you sure you want to leave the game?')) {
+                window.location.href = '/lobby';
+            }
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            // Rate limiting: one message per second
+            const now = Date.now();
+            if (now - lastMessageTime < 1000) {
+                showNotification('Please wait before sending another message');
+                return;
+            }
+
+            lastMessageTime = now;
+
+            // Add message to chat
+            const chatMessages = document.getElementById('chatMessages');
+            chatMessages.innerHTML += `
+                <div class="chat-message">
+                    <span class="chat-player-name">${playerName}:</span>
+                    <span class="chat-text">${message}</span>
+                </div>
+            `;
+
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            input.value = '';
+        }
+
+        // Handle enter key in chat
+        document.getElementById('chatInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        async function pollGameStatus() {
+            try {
+                const response = await fetch(`/game-state/${gameId}?playerId=${playerId}`);
+                const data = await response.json();
+
+                if (data.status === 'playing') {
+                    window.location.href = `/game/${gameId}?playerId=${playerId}`;
+                    return;
+                }
+
+                updatePlayerList(data.players);
+            } catch (error) {
+                console.error('Error polling game status:', error);
+                showNotification('Lost connection to server. Retrying...');
+            }
+        }
+
+        // Start everything when page loads
+        window.addEventListener('load', () => {
+            pollGameStatus();
+            setInterval(pollGameStatus, 2000);
+        });
+    </script>
+</body>
+</html>

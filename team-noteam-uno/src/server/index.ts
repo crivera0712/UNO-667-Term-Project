@@ -12,7 +12,7 @@ dotenv.config();
 
 // Initialize express app
 const app = express();
-const PORT = process.env.PORT || 6969;
+const PORT = process.env.PORT || 4444;
 
 // Middleware
 app.use(morgan("dev"));
@@ -21,8 +21,9 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 // Static files
-app.use(express.static(path.join(process.cwd(), "src", "public")));
-
+const publicPath = path.join(process.cwd(), 'src', 'public');
+app.use(express.static(publicPath));
+console.log('Serving static files from:', publicPath);
 // View engine setup
 app.set("views", path.join(process.cwd(), "src", "server", "views"));
 app.set("view engine", "ejs");
