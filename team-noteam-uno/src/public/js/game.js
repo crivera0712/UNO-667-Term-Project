@@ -32,8 +32,14 @@ const NotificationManager = {
 class ColorPickerModal {
     static init() {
         const modal = document.getElementById('colorPickerModal');
-        const colorButtons = modal.querySelectorAll('.color-button');
+        if (!modal) return;
 
+        // Set initial display style to flex (hidden by default)
+        modal.style.display = 'flex';
+        modal.style.opacity = '0';
+        modal.style.visibility = 'hidden';
+
+        const colorButtons = modal.querySelectorAll('.color-button');
         colorButtons.forEach(button => {
             button.addEventListener('click', () => {
                 const color = button.dataset.color;
@@ -44,6 +50,7 @@ class ColorPickerModal {
             });
         });
 
+        // Close modal when clicking outside
         window.addEventListener('click', (event) => {
             if (event.target === modal) {
                 this.hide();
@@ -54,16 +61,25 @@ class ColorPickerModal {
     static show(callback) {
         this.callback = callback;
         const modal = document.getElementById('colorPickerModal');
-        modal.style.display = 'block';
+        if (!modal) return;
+
+        modal.style.visibility = 'visible';
+        modal.style.opacity = '1';
+        modal.style.display = 'flex';
     }
 
     static hide() {
         const modal = document.getElementById('colorPickerModal');
-        modal.style.display = 'none';
+        if (!modal) return;
+
+        modal.style.opacity = '0';
+        modal.style.visibility = 'hidden';
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
         this.callback = null;
     }
 }
-
 // Main game class
 class UnoGame {
     constructor(config) {
