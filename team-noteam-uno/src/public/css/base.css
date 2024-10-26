@@ -1,0 +1,111 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+body {
+    background: linear-gradient(135deg, #1e1e2e, #2d2d44);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: white;
+    position: relative;
+    overflow-x: hidden;
+}
+
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 1;
+}
+
+.container {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 1200px;
+    padding: 2rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.title-container {
+    position: relative;
+    margin: 2rem 0;
+    padding: 1rem;
+}
+
+.title {
+    font-family: 'Righteous', cursive;
+    font-size: 4.5rem;
+    text-transform: uppercase;
+    margin: 0;
+    background: linear-gradient(45deg, #ff0000, #ff6b6b, #ff0000);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.2);
+    animation: gradient 8s ease infinite;
+    position: relative;
+    z-index: 1;
+}
+
+.title::before,
+.title::after {
+    content: "♦";
+    font-family: "Font Awesome 6 Free";
+    position: absolute;
+    top: 50%;
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 2rem;
+}
+
+.title::before {
+    left: -40px;
+    transform: translateY(-50%);
+    animation: bounce 2s ease-in-out infinite;
+}
+
+.title::after {
+    right: -40px;
+    transform: translateY(-50%) rotate(180deg);
+    animation: bounce 2s ease-in-out infinite reverse;
+}
+
+@keyframes gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(-50%) scale(1); }
+    50% { transform: translateY(-50%) scale(1.2); }
+}
+
+/* Media Queries */
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+
+    .title {
+        font-size: 3rem;
+    }
+
+    .title::before,
+    .title::after {
+        display: none;
+    }
+}

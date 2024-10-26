@@ -1,0 +1,52 @@
+/* Icon styles */
+.setting-item h3::before {
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-size: 1rem;
+}
+
+.setting-item:nth-child(1) h3::before {
+    content: "\f028";
+    color: var(--uno-blue);
+}
+
+.setting-item:nth-child(2) h3::before {
+    content: "\f025";
+    color: var(--uno-green);
+}
+
+.setting-item:nth-child(3) h3::before {
+    content: "\f53f";
+    color: var(--uno-yellow);
+}
+
+/* Footer styles */
+.footer {
+    margin-top: auto;
+    padding: 1rem;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    position: relative;
+    z-index: 2;
+}
+
+/* Utility classes */
+.text-center {
+    text-align: center;
+}
+
+.mt-1 {
+    margin-top: 1rem;
+}
+
+.mt-2 {
+    margin-top: 2rem;
+}
+
+.mb-1 {
+    margin-bottom: 1rem;
+}
+
+.mb-2 {
+    margin-bottom: 2rem;
+}

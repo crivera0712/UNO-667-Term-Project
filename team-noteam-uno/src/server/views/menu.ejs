@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UNO - Main Menu</title>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Righteous&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/utils.css">
+    <link rel="stylesheet" href="/css/components/menu.css">
+    <link rel="stylesheet" href="/css/components/modal.css">
+<body>
+    <div class="container">
+        <div class="title-container">
+            <h1 class="title">UNO Game</h1>
+        </div>
+
+        <div class="menu-container">
+            <div class="game-modes">
+                <div class="mode-card" onclick="GameManager.startGame('multi')">
+                    <h3>Multiplayer</h3>
+                    <p>Play with friends</p>
+                </div>
+            </div>
+
+            <button class="menu-button" onclick="ModalManager.show('rulesModal')">Game Rules</button>
+            <button class="menu-button" onclick="LeaderboardManager.displayLeaderboard()">Leaderboard</button>
+            <button class="menu-button" onclick="ModalManager.show('settingsModal')">Settings</button>
+            <button class="menu-button" onclick="GameManager.quitGame()">Quit Game</button>
+        </div>
+
+        <!-- Rules Modal -->
+        <div class="modal" id="rulesModal">
+            <div class="modal-content">
+                <button class="close-button" onclick="ModalManager.hide('rulesModal')">&times;</button>
+                <h2>UNO Rules</h2>
+                <div class="rules-content">
+                    <h3>Basic Rules:</h3>
+                    <ul>
+                        <li>Match the top card by number, color, or symbol</li>
+                        <li>Draw cards when you can't play</li>
+                        <li>Special cards have unique actions</li>
+                        <li>Call "UNO" when playing your second-to-last card</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div class="modal" id="settingsModal">
+            <div class="modal-content">
+                <button class="close-button" onclick="ModalManager.hide('settingsModal')">&times;</button>
+                <h2>Game Settings</h2>
+                <div class="settings-grid">
+                    <div class="setting-item">
+                        <h3>Sound</h3>
+                        <input type="range" id="soundVolume" min="0" max="100" value="50">
+                    </div>
+                    <div class="setting-item">
+                        <h3>Music</h3>
+                        <input type="range" id="musicVolume" min="0" max="100" value="50">
+                    </div>
+                    <div class="setting-item">
+                        <h3>Theme</h3>
+                        <select id="theme">
+                            <option value="classic">Classic</option>
+                            <option value="dark">Dark</option>
+                            <option value="light">Light</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leaderboard Modal -->
+        <div class="modal" id="leaderboardModal">
+            <div class="modal-content">
+                <button class="close-button" onclick="ModalManager.hide('leaderboardModal')">&times;</button>
+                <h2>Leaderboard</h2>
+                <div id="leaderboardContent">
+                    Loading leaderboard...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; NoTeam</p>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="/js/game.js"></script>
+</body>
+</html>
