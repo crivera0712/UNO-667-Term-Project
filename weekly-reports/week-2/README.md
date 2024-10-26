@@ -1,9 +1,27 @@
-Week 2 Report
-TEAM: NoTeam
-Link to GitHub repository: https://github.com/crivera0712/UNO-667-Term-Project
-Link to GitHub Project Board: https://github.com/users/crivera0712/projects/2/views/1
+# Week 2 Report
 
-	For this week’s milestone we wanted to set up our development environment for the backend for our project. Along with this goal we also decided to get a head start on the design of the database for our project. When creating our database we used dbdiagram.io. We came up with a rough sketch of the ERD based off the one that was covered in class. For the upcoming week we want to review this rough draft and create a finalized version. 
-	Milestones that were assigned for this week were: 
-    - Setup development environment 
+**TEAM:** NoTeam
+
+**Link to GitHub repository:**  
+[https://github.com/crivera0712/UNO-667-Term-Project](https://github.com/crivera0712/UNO-667-Term-Project)
+
+**Link to GitHub Project Board:**  
+[https://github.com/users/crivera0712/projects/2/views/1](https://github.com/users/crivera0712/projects/2/views/1)
+
+---
+
+## Report Summary
+
+For this week’s milestone, we focused on setting up the development environment for the backend of our project. Alongside this goal, we also decided to get a head start on the design of the database.
+
+To aid in the database creation process, we used [dbdiagram.io](https://dbdiagram.io). We drafted a rough sketch of the Entity-Relationship Diagram (ERD) based on the one covered in class. In the upcoming week, we plan to review this rough draft and create a finalized version.
+
+---
+
+## Milestones for the Week
+
+- Set up the development environment
+
+---
+
 
