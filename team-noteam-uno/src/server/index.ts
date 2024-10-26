@@ -1,31 +1,51 @@
+import express, { Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
-import express from "express";
-import httpErrors from "http-errors";
+import createError from "http-errors";
 import morgan from "morgan";
 import * as path from "path";
-import rootRoutes from "./routes/root";
+import apiRoutes from "./routes/api";
+import webRoutes from "./routes/web";
+
+// Load environment variables
 dotenv.config();
+
+// Initialize express app
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
+
+// Middleware
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(express.static(path.join(process.cwd(), "src",
-    "public")));
 app.use(cookieParser());
-app.set("views", path.join(process.cwd(), "src", "server",
-    "views"));
-app.set("view engine", "ejs");
-app.use("/", rootRoutes);
 
-// This middleware function should be defined before starting the server
-// It is used to handle 404 errors
-app.use((_request, _response, next) => {
-    const notFoundError = new httpErrors.NotFound();
-    next(notFoundError);
+// Static files
+app.use(express.static(path.join(process.cwd(), "src", "public")));
+
+// View engine setup
+app.set("views", path.join(process.cwd(), "src", "server", "views"));
+app.set("view engine", "ejs");
+
+// Routes
+app.use("/", webRoutes);
+app.use("/api", apiRoutes);
+
+// 404 Handler
+app.use((_req: Request, _res: Response, next: NextFunction) => {
+    next(createError(404));
 });
 
+// Error Handler
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+    res.locals.message = err.message;
+    res.locals.error = req.app.get("env") === "development" ? err : {};
+
+    res.status(err.status || 500);
+    res.render("error");
+});
+
+// Start server
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`Server running on http://localhost:${PORT}`);
 });
