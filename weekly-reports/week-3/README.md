@@ -18,4 +18,5 @@
 - **GitHub Project Board:** [https://github.com/users/crivera0712/projects/2/views/1](https://github.com/users/crivera0712/projects/2/views/1)
 
 ### Milestone Summary
-For this week’s milestone, our team focused on setting up the frontend environment for our term project. Additionally, we reviewed the ERD (Entity Relationship Diagram) created for our database. While the ERD is not yet finalized, we continue to work on refining it.
+For this week’s milestone we are tasked with setting up the frontend environment for our term project. We also reviewed the ERD that we made for our database. Our ERD is still not finalized but that is something that we are still working on.
+
