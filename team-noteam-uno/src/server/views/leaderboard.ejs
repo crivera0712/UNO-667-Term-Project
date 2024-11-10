@@ -19,21 +19,19 @@
             color: white;
         }
 
-        .lobby-container {
+        .leaderboard-container {
             background: rgba(255, 255, 255, 0.1);
             padding: 3rem;
             border-radius: 15px;
             backdrop-filter: blur(10px);
             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
             text-align: center;
-            max-width: 700px;
+            max-width: 800px;
             width: 100%;
             border: 1px solid rgba(255, 255, 255, 0.18);
-            transform-style: preserve-3d;
-            perspective: 1000px;
         }
 
-        .lobby-container h1 {
+        .leaderboard-container h1 {
             font-size: 2.5em;
             margin-bottom: 30px;
             text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
@@ -46,62 +44,49 @@
             100% { transform: translateY(0px); }
         }
 
-        .button-container {
-            display: flex;
-            gap: 30px;
-            justify-content: center;
-            margin-top: 40px;
-            perspective: 1000px;
-        }
-
-        .game-button {
-            padding: 20px 40px;
-            font-size: 1.2em;
-            border: none;
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-family: 'Poppins', sans-serif;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            position: relative;
             overflow: hidden;
         }
 
-        .game-button::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(
-                120deg,
-                transparent,
-                rgba(255, 255, 255, 0.3),
-                transparent
-            );
-            transition: 0.5s;
+        .leaderboard-table th,
+        .leaderboard-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .game-button:hover::before {
-            left: 100%;
+        .leaderboard-table th {
+            background: rgba(255, 255, 255, 0.1);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
-        .create-game {
-            background: linear-gradient(45deg, #4CAF50, #45a049);
-            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        .leaderboard-table tr:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transition: background 0.3s ease;
         }
 
-        .join-game {
-            background: linear-gradient(45deg, #2196F3, #1976D2);
-            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+        .rank {
+            font-weight: 600;
+            font-size: 1.2em;
         }
 
-        .game-button:hover {
-            transform: translateY(-5px) scale(1.05);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        .rank-1 {
+            color: #FFD700;
+        }
+
+        .rank-2 {
+            color: #C0C0C0;
+        }
+
+        .rank-3 {
+            color: #CD7F32;
         }
 
         .back-button {
@@ -124,7 +109,13 @@
             transform: translateX(-3px);
         }
 
-
+        .stats {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            margin: 0 5px;
+            background: rgba(255, 255, 255, 0.1);
+        }
 
         .uno-cards-bg {
             position: fixed;
@@ -149,36 +140,40 @@
 <body>
     <div class="uno-cards-bg"></div>
     <a href="/" class="back-button">← Back to Menu</a>
-    <div class="lobby-container">
-        <h1><%= title %></h1>
-        <p>Welcome to the UNO Game Lobby!</p>
+    <div class="leaderboard-container">
+        <h1>🏆 <%= title %></h1>
+        <div class="leaderboard-content">
+            <table class="leaderboard-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Player</th>
+                        <th>Wins</th>
+                        <th>Games Played</th>
+                        <th>Win Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% const mockPlayers = [
+                        { name: "Champion123", wins: 150, gamesPlayed: 200 },
+                        { name: "UnoMaster", wins: 130, gamesPlayed: 180 },
+                        { name: "CardKing", wins: 120, gamesPlayed: 170 },
+                        { name: "ProPlayer", wins: 100, gamesPlayed: 150 },
+                        { name: "GameWizard", wins: 90, gamesPlayed: 140 }
+                    ] %>
 
-
-
-        <div class="button-container">
-            <button class="game-button create-game" onclick="createGame()">Create Game</button>
-            <button class="game-button join-game" onclick="joinGame()">Join Game</button>
+                    <% mockPlayers.forEach((player, index) => { %>
+                        <tr>
+                            <td class="rank rank-<%= index + 1 %>">#<%= index + 1 %></td>
+                            <td><%= player.name %></td>
+                            <td><span class="stats"><%= player.wins %></span></td>
+                            <td><span class="stats"><%= player.gamesPlayed %></span></td>
+                            <td><span class="stats"><%= Math.round((player.wins / player.gamesPlayed) * 100) %>%</span></td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
         </div>
     </div>
-
-    <script>
-        function createGame() {
-            const btn = document.querySelector('.create-game');
-            btn.style.transform = 'scale(0.95)';
-            setTimeout(() => btn.style.transform = '', 150);
-            // TODO: Implement game creation logic
-            console.log('Creating new game...');
-        }
-
-        function joinGame() {
-            const btn = document.querySelector('.join-game');
-            btn.style.transform = 'scale(0.95)';
-            setTimeout(() => btn.style.transform = '', 150);
-            // TODO: Implement game joining logic
-            console.log('Joining existing game...');
-        }
-
-
-    </script>
 </body>
 </html>

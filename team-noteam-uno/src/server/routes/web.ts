@@ -18,7 +18,7 @@ router.get("/play", (_req, res) => {
 
 router.get("/leaderboard", (_req, res) => {
     res.render("leaderboard", {
-        title: "Leaderboard"
+        title: "Global Leaderboard"
     });
 });
 
