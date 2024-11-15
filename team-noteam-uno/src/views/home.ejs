@@ -1,0 +1,16 @@
+<%- include('partials/header') %>
+<div class="container">
+    <h1>UNO Game Lobby</h1>
+    <div class="game-list">
+        <h2>Active Games</h2>
+        <!-- Game list will be dynamically populated -->
+        <div id="active-games"></div>
+        <button id="create-game" class="btn">Create New Game</button>
+    </div>
+    <div class="global-chat">
+        <h2>Global Chat</h2>
+        <div id="chat-messages"></div>
+        <input type="text" id="chat-input" placeholder="Type a message...">
+    </div>
+</div>
+<%- include('partials/footer') %>

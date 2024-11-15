@@ -1,0 +1,24 @@
+<%- include('../partials/header') %>
+<div class="container">
+    <div class="game-board">
+        <div class="opponents-area">
+            <!-- Other players' cards will be rendered here -->
+        </div>
+        <div class="play-area">
+            <div class="draw-pile"></div>
+            <div class="discard-pile"></div>
+        </div>
+        <div class="player-hand">
+            <!-- Current player's cards will be rendered here -->
+        </div>
+    </div>
+    <div class="game-controls">
+        <button id="draw-card" class="btn">Draw Card</button>
+        <button id="say-uno" class="btn">Say UNO!</button>
+    </div>
+    <div class="game-chat">
+        <div id="game-messages"></div>
+        <input type="text" id="game-chat-input" placeholder="Type a message...">
+    </div>
+</div>
+<%- include('../partials/footer') %>
