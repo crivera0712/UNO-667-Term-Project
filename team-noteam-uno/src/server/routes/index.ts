@@ -1,36 +1,41 @@
-import express from 'express';
-import { isAuthenticated } from '../middleware/auth';
+/**
+ * Routes Index Module
+ * Central hub for exporting all route modules in the application.
+ * This module aggregates and re-exports all route handlers for easier imports
+ * in the main application file.
+ */
 
-const router = express.Router();
+/**
+ * Authentication Routes
+ * Handles user authentication, registration, and session management
+ * Routes: /auth/login, /auth/signup, /auth/register, /auth/logout
+ */
+export { default as auth } from "./auth";
 
-// Unauthenticated landing page
-router.get('/', (req, res) => {
-  res.render('landing');
-});
+/**
+ * Game Routes
+ * Handles game-related functionality including creation and gameplay
+ * Routes: /games, /games/:id
+ */
+export { default as games } from "./games";
 
-// Authenticated landing page
-router.get('/home', isAuthenticated, (req, res) => {
-  res.render('home');
-});
+/**
+ * Home Routes
+ * Handles the main landing page of the application
+ * Routes: /
+ */
+export { default as home } from "./home";
 
-// Login page
-router.get('/login', (req, res) => {
-  res.render('auth/login');
-});
+/**
+ * Leaderboard Routes
+ * Handles the display of player rankings and statistics
+ * Routes: /leaderboard
+ */
+export { default as leaderboard } from "./leaderboard";
 
-// Register page
-router.get('/register', (req, res) => {
-  res.render('auth/register');
-});
-
-// Game lobby
-router.get('/lobby/:id', isAuthenticated, (req, res) => {
-  res.render('game/lobby', { lobbyId: req.params.id });
-});
-
-// Active game
-router.get('/game/:id', isAuthenticated, (req, res) => {
-  res.render('game/game', { gameId: req.params.id });
-});
-
-export default router;
+/**
+ * Game Rules Routes
+ * Handles the display of UNO game rules and instructions
+ * Routes: /rules
+ */
+export { default as rules } from "./rules";

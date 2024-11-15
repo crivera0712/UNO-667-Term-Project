@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UNO - Login</title>
+    <title>UNO - Sign Up</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -66,7 +66,7 @@
             transform-style: preserve-3d;
         }
 
-        .login-box {
+        .signup-box {
             background: rgba(15, 15, 15, 0.95);
             padding: 3rem;
             border-radius: 20px;
@@ -77,15 +77,15 @@
             border: 1px solid rgba(255, 0, 0, 0.2);
             backdrop-filter: blur(20px);
             transform-style: preserve-3d;
-            animation: loginBoxFloat 6s ease-in-out infinite;
+            animation: signupBoxFloat 6s ease-in-out infinite;
         }
 
-        @keyframes loginBoxFloat {
+        @keyframes signupBoxFloat {
             0%, 100% { transform: translateY(0) rotateX(0deg); }
             50% { transform: translateY(-10px) rotateX(2deg); }
         }
 
-        .login-title {
+        .signup-title {
             text-align: center;
             font-size: 3.2rem;
             margin-bottom: 2.5rem;
@@ -139,7 +139,7 @@
             transform: translateZ(10px);
         }
 
-        .btn-login {
+        .btn-signup {
             background: linear-gradient(45deg, #ff0000, #ff3333);
             color: white;
             padding: 1.2rem;
@@ -157,7 +157,7 @@
             overflow: hidden;
         }
 
-        .btn-login:before {
+        .btn-signup:before {
             content: '';
             position: absolute;
             top: -50%;
@@ -169,24 +169,24 @@
             transition: transform 0.6s ease-out;
         }
 
-        .btn-login:hover {
+        .btn-signup:hover {
             transform: translateY(-3px) scale(1.02);
             box-shadow: 0 10px 30px rgba(255, 0, 0, 0.5);
             background: linear-gradient(45deg, #ff3333, #ff0000);
         }
 
-        .btn-login:hover:before {
+        .btn-signup:hover:before {
             transform: scale(1) rotate(45deg);
         }
 
-        .signup-link {
+        .login-link {
             text-align: center;
             margin-top: 2rem;
             color: #ffffff;
             font-size: 1.1rem;
         }
 
-        .signup-link a {
+        .login-link a {
             color: #ff0000;
             text-decoration: none;
             font-weight: bold;
@@ -194,7 +194,7 @@
             position: relative;
         }
 
-        .signup-link a:after {
+        .login-link a:after {
             content: '';
             position: absolute;
             width: 100%;
@@ -206,12 +206,12 @@
             transition: transform 0.3s ease;
         }
 
-        .signup-link a:hover {
+        .login-link a:hover {
             color: #ff3333;
             text-shadow: 0 0 15px rgba(255, 0, 0, 0.7);
         }
 
-        .signup-link a:hover:after {
+        .login-link a:hover:after {
             transform: scaleX(1);
         }
 
@@ -273,24 +273,32 @@
     <div class="background"></div>
     <div class="particles" id="particles"></div>
     <div class="auth-container">
-        <div class="login-box">
-            <h1 class="login-title">UNO Login</h1>
-            <form class="auth-form" action="/auth/login" method="POST">
+        <div class="signup-box">
+            <h1 class="signup-title">Sign Up</h1>
+            <form class="auth-form" action="/auth/register" method="POST">
                 <div class="form-group">
                     <label for="username">Username</label>
                     <input type="text" id="username" name="username" required class="form-control" autocomplete="username">
                 </div>
                 <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required class="form-control" autocomplete="email">
+                </div>
+                <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required class="form-control" autocomplete="current-password">
+                    <input type="password" id="password" name="password" required class="form-control" autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" required class="form-control" autocomplete="new-password">
                 </div>
                 <% if (messages.error) { %>
                     <div class="alert alert-danger"><%= messages.error %></div>
                 <% } %>
-                <button type="submit" class="btn btn-login">Login</button>
+                <button type="submit" class="btn-signup">Sign Up</button>
             </form>
-            <div class="signup-link">
-                <p>Don't have an account? <a href="/auth/signup">Sign up here</a></p>
+            <div class="login-link">
+                <p>Already have an account? <a href="/auth/login">Login here</a></p>
             </div>
         </div>
     </div>

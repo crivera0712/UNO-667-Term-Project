@@ -1,0 +1,298 @@
+<!-- Tailwind CSS via CDN (for development only) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                animation: {
+                    'sparkle': 'sparkle 2s ease-in-out infinite',
+                    'float': 'float 3s ease-in-out infinite',
+                    'glow': 'glow 2s ease-in-out infinite',
+                    'slide-up': 'slide-up 0.5s ease-out forwards',
+                    'pulse-border': 'pulse-border 2s ease-in-out infinite',
+                    'shine': 'shine 2s ease-in-out infinite',
+                    'scale-bounce': 'scale-bounce 2s ease-in-out infinite',
+                    'cosmic': 'cosmic 15s linear infinite',
+                    'card-hover': 'card-hover 0.3s ease-out forwards',
+                    'number-spin': 'number-spin 0.5s ease-out'
+                },
+                keyframes: {
+                    sparkle: {
+                        '0%, 100%': { opacity: 1, transform: 'scale(1)' },
+                        '50%': { opacity: 0.5, transform: 'scale(0.95)' }
+                    },
+                    float: {
+                        '0%, 100%': { transform: 'translateY(0) rotate(0deg)' },
+                        '50%': { transform: 'translateY(-10px) rotate(2deg)' }
+                    },
+                    glow: {
+                        '0%, 100%': {
+                            'box-shadow': '0 0 15px #ff0000, 0 0 30px #ff0000, 0 0 45px #ff0000',
+                            'border-color': 'rgba(255, 0, 0, 0.7)'
+                        },
+                        '50%': {
+                            'box-shadow': '0 0 30px #ff4444, 0 0 60px #ff4444, 0 0 90px #ff4444',
+                            'border-color': 'rgba(255, 68, 68, 0.9)'
+                        }
+                    },
+                    'pulse-border': {
+                        '0%, 100%': {
+                            'border-color': 'rgba(255, 0, 0, 0.5)',
+                            transform: 'scale(1)'
+                        },
+                        '50%': {
+                            'border-color': 'rgba(255, 0, 0, 1)',
+                            transform: 'scale(1.02)'
+                        }
+                    },
+                    'shine': {
+                        '0%': {
+                            'background-position': '200% center',
+                            opacity: 0.5
+                        },
+                        '100%': {
+                            'background-position': '-200% center',
+                            opacity: 1
+                        }
+                    },
+                    'scale-bounce': {
+                        '0%, 100%': {
+                            transform: 'scale(1) rotate(0deg)'
+                        },
+                        '50%': {
+                            transform: 'scale(1.05) rotate(1deg)'
+                        }
+                    },
+                    'cosmic': {
+                        '0%': {
+                            transform: 'rotate(0deg) scale(1)',
+                            filter: 'hue-rotate(0deg)'
+                        },
+                        '50%': {
+                            transform: 'rotate(180deg) scale(1.1)',
+                            filter: 'hue-rotate(180deg)'
+                        },
+                        '100%': {
+                            transform: 'rotate(360deg) scale(1)',
+                            filter: 'hue-rotate(360deg)'
+                        }
+                    },
+                    'card-hover': {
+                        '0%': {
+                            transform: 'translateY(0) scale(1)',
+                            'box-shadow': '0 0 0 rgba(255, 0, 0, 0)'
+                        },
+                        '100%': {
+                            transform: 'translateY(-5px) scale(1.02)',
+                            'box-shadow': '0 20px 30px -10px rgba(255, 0, 0, 0.3)'
+                        }
+                    },
+                    'number-spin': {
+                        '0%': {
+                            transform: 'rotateX(180deg)',
+                            opacity: 0
+                        },
+                        '100%': {
+                            transform: 'rotateX(0deg)',
+                            opacity: 1
+                        }
+                    },
+                    'slide-up': {
+                        '0%': {
+                            transform: 'translateY(20px)',
+                            opacity: 0,
+                            filter: 'blur(10px)'
+                        },
+                        '100%': {
+                            transform: 'translateY(0)',
+                            opacity: 1,
+                            filter: 'blur(0)'
+                        }
+                    }
+                },
+                backgroundImage: {
+                    'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+                }
+            }
+        }
+    };
+</script>
+
+<div class="relative min-h-screen bg-gradient-radial from-red-800 via-gray-900 to-black text-white overflow-hidden">
+    <!-- Cosmic Background Effects -->
+    <div class="absolute inset-0 opacity-50">
+        <div class="absolute inset-0 animate-cosmic bg-gradient-to-r from-red-500/20 via-yellow-500/20 to-red-500/20"></div>
+        <div class="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-red-500/20 via-transparent to-transparent"></div>
+    </div>
+
+    <!-- Back Button -->
+    <a href="/" class="absolute top-6 left-6 group flex items-center space-x-2 text-white/80 hover:text-white transition-all duration-300 z-10">
+        <svg class="w-6 h-6 transform group-hover:-translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        <span class="text-lg font-semibold tracking-wide">Back to Home</span>
+    </a>
+
+    <div class="container mx-auto px-4 py-16 relative z-10">
+        <!-- Title Section -->
+        <div class="text-center mb-16 relative">
+            <div class="relative">
+                <h1 class="text-7xl font-black mb-4 animate-scale-bounce bg-gradient-to-r from-yellow-400 via-red-500 to-yellow-400 bg-clip-text text-transparent bg-[length:200%_auto] animate-shine">
+                    Leaderboard
+                </h1>
+                <div class="absolute -inset-1 bg-gradient-to-r from-yellow-400 via-red-500 to-yellow-400 rounded-lg blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
+            </div>
+        </div>
+
+        <!-- Leaderboard Grid -->
+        <div class="max-w-6xl mx-auto grid gap-8">
+            <!-- Top 3 Players -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+                <!-- 2nd Place -->
+                <div class="order-2 md:order-1 transform hover:scale-105 transition-all duration-500" style="animation: slide-up 0.5s ease-out forwards 0.2s; opacity: 0">
+                    <div class="relative bg-gradient-to-b from-gray-800 to-gray-900 rounded-2xl p-8 border border-gray-700/50">
+                        <div class="absolute -top-10 left-1/2 transform -translate-x-1/2">
+                            <div class="w-20 h-20 bg-gradient-to-r from-gray-300 to-gray-400 rounded-full flex items-center justify-center animate-float shadow-lg">
+                                <span class="text-4xl font-bold text-gray-800 animate-number-spin">2</span>
+                            </div>
+                        </div>
+                        <div class="pt-12 text-center">
+                            <h3 class="text-2xl font-bold text-gray-300"><%= topPlayers[1].username %></h3>
+                            <p class="text-gray-400 mt-2 text-xl"><%= topPlayers[1].total_points %> Points</p>
+                            <div class="mt-4 space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">Games Won:</span>
+                                    <span class="text-gray-300"><%= topPlayers[1].games_won %></span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">Win Rate:</span>
+                                    <span class="text-gray-300"><%= topPlayers[1].win_rate %>%</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">Win Streak:</span>
+                                    <span class="text-gray-300"><%= topPlayers[1].current_win_streak %> 🔥</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-gray-500 to-gray-600"></div>
+                    </div>
+                </div>
+
+                <!-- 1st Place -->
+                <div class="order-1 md:order-2 transform hover:scale-105 transition-all duration-500" style="animation: slide-up 0.5s ease-out forwards">
+                    <div class="relative bg-gradient-to-b from-yellow-900 to-yellow-950 rounded-2xl p-10 border border-yellow-500/50 -mt-8">
+                        <div class="absolute -top-12 left-1/2 transform -translate-x-1/2">
+                            <div class="w-24 h-24 bg-gradient-to-r from-yellow-300 to-yellow-500 rounded-full flex items-center justify-center animate-float shadow-lg">
+                                <span class="text-5xl font-bold text-yellow-900 animate-number-spin">1</span>
+                            </div>
+                        </div>
+                        <div class="pt-14 text-center">
+                            <h3 class="text-3xl font-bold text-yellow-500"><%= topPlayers[0].username %></h3>
+                            <p class="text-yellow-400 mt-2 text-2xl font-bold"><%= topPlayers[0].total_points %> Points</p>
+                            <div class="mt-6 space-y-3">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-yellow-600">Games Won:</span>
+                                    <span class="text-yellow-400"><%= topPlayers[0].games_won %></span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-yellow-600">Win Rate:</span>
+                                    <span class="text-yellow-400"><%= topPlayers[0].win_rate %>%</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-yellow-600">Win Streak:</span>
+                                    <span class="text-yellow-400"><%= topPlayers[0].current_win_streak %> 🔥</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-yellow-600">Highest Score:</span>
+                                    <span class="text-yellow-400"><%= topPlayers[0].highest_score %></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-r from-yellow-500 to-yellow-600"></div>
+                    </div>
+                </div>
+
+                <!-- 3rd Place -->
+                <div class="order-3 transform hover:scale-105 transition-all duration-500" style="animation: slide-up 0.5s ease-out forwards 0.4s; opacity: 0">
+                    <div class="relative bg-gradient-to-b from-amber-900 to-amber-950 rounded-2xl p-8 border border-amber-700/50">
+                        <div class="absolute -top-10 left-1/2 transform -translate-x-1/2">
+                            <div class="w-20 h-20 bg-gradient-to-r from-amber-600 to-amber-700 rounded-full flex items-center justify-center animate-float shadow-lg">
+                                <span class="text-4xl font-bold text-amber-200 animate-number-spin">3</span>
+                            </div>
+                        </div>
+                        <div class="pt-12 text-center">
+                            <h3 class="text-2xl font-bold text-amber-500"><%= topPlayers[2].username %></h3>
+                            <p class="text-amber-400 mt-2 text-xl"><%= topPlayers[2].total_points %> Points</p>
+                            <div class="mt-4 space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-amber-600">Games Won:</span>
+                                    <span class="text-amber-400"><%= topPlayers[2].games_won %></span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-amber-600">Win Rate:</span>
+                                    <span class="text-amber-400"><%= topPlayers[2].win_rate %>%</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-amber-600">Win Streak:</span>
+                                    <span class="text-amber-400"><%= topPlayers[2].current_win_streak %> 🔥</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-600 to-amber-700"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rest of Leaderboard -->
+            <div class="bg-black/40 backdrop-blur-xl rounded-3xl p-8 relative overflow-hidden border border-red-500/20">
+                <div class="absolute inset-0">
+                    <div class="absolute inset-0 bg-gradient-to-r from-red-500/10 to-transparent animate-pulse"></div>
+                    <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-500 to-yellow-500 opacity-20"></div>
+                </div>
+
+                <div class="relative grid gap-4">
+                    <% players.slice(3).forEach((player, index) => { %>
+                        <div class="bg-gradient-to-r from-white/5 to-white/10 rounded-xl p-6 transform hover:scale-105 transition-all duration-500 hover:from-red-900/20 hover:to-red-800/20 group border border-white/10 hover:border-red-500/30"
+                             style="animation: slide-up 0.5s ease-out forwards <%= (index)*0.1 %>s; opacity: 0">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-6">
+                                    <div class="relative">
+                                        <div class="absolute inset-0 bg-gradient-to-r from-red-500 to-yellow-500 rounded-full blur-sm animate-pulse"></div>
+                                        <span class="relative w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center font-bold text-gray-300 border border-red-500/30 group-hover:border-red-500 transition-colors duration-300">
+                                            <%= index + 4 %>
+                                        </span>
+                                    </div>
+                                    <div class="transform group-hover:translate-x-2 transition-transform duration-300">
+                                        <h3 class="font-semibold text-lg group-hover:text-red-400 transition-colors duration-300">
+                                            <%= player.username %>
+                                            <% if (player.current_win_streak >= 3) { %>
+                                                <span class="ml-2 text-yellow-500 animate-bounce">🔥 <%= player.current_win_streak %></span>
+                                            <% } %>
+                                        </h3>
+                                        <div class="flex space-x-4 text-sm text-gray-400 group-hover:text-red-300">
+                                            <p><%= player.total_points %> Points</p>
+                                            <p><%= player.games_won %>/<%= player.games_played %> Won</p>
+                                            <p><%= player.win_rate %>% Win Rate</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col items-end space-y-2">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-xs text-gray-500">Highest Score:</span>
+                                        <span class="text-sm font-semibold text-gray-400 group-hover:text-red-400">
+                                            <%= player.highest_score %>
+                                        </span>
+                                    </div>
+                                    <div class="h-1.5 w-32 bg-gray-700/50 rounded-full overflow-hidden">
+                                        <div class="h-full bg-gradient-to-r from-red-500 to-yellow-500 transition-all duration-500 animate-pulse"
+                                             style="width: <%= (player.win_rate) %>%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
