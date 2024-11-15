@@ -1,8 +1,15 @@
+/**
+ * Database Migration Script
+ * This script handles database migrations by executing migration files in order
+ * and keeping track of which migrations have been executed.
+ */
+
 require('dotenv').config();
 const { Pool } = require('pg');
 const path = require('path');
 const fs = require('fs').promises;
 
+// Create a PostgreSQL connection pool using environment variables or defaults
 const pool = new Pool({
     user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD || 'postgres',
@@ -11,6 +18,10 @@ const pool = new Pool({
     port: parseInt(process.env.DB_PORT || '5432'),
 });
 
+/**
+ * Creates the migrations tracking table if it doesn't exist.
+ * This table keeps track of which migrations have been executed.
+ */
 async function createMigrationsTable() {
     await pool.query(`
         CREATE TABLE IF NOT EXISTS migrations (
@@ -21,15 +32,28 @@ async function createMigrationsTable() {
     `);
 }
 
+/**
+ * Retrieves a list of all previously executed migrations
+ * @returns {Promise<string[]>} Array of migration names that have been executed
+ */
 async function getExecutedMigrations() {
     const result = await pool.query('SELECT name FROM migrations ORDER BY id');
     return result.rows.map(row => row.name);
 }
 
+/**
+ * Records a migration as executed in the migrations table
+ * @param {string} migrationName - Name of the migration file that was executed
+ */
 async function markMigrationAsExecuted(migrationName) {
     await pool.query('INSERT INTO migrations (name) VALUES ($1)', [migrationName]);
 }
 
+/**
+ * Executes a single migration file within a transaction
+ * @param {string} migrationPath - Full path to the migration file
+ * @param {string} migrationName - Name of the migration file
+ */
 async function executeMigration(migrationPath, migrationName) {
     console.log(`Executing migration: ${migrationName}`);
     const migration = require(migrationPath);
@@ -49,6 +73,14 @@ async function executeMigration(migrationPath, migrationName) {
     }
 }
 
+/**
+ * Main migration function that:
+ * 1. Creates the migrations table if it doesn't exist
+ * 2. Gets list of executed migrations
+ * 3. Reads all migration files from the migrations directory
+ * 4. Executes any migrations that haven't been run yet
+ * 5. Handles errors and cleanup
+ */
 async function migrate() {
     try {
         await createMigrationsTable();
@@ -79,4 +111,5 @@ async function migrate() {
     }
 }
 
+// Execute the migration script
 migrate();

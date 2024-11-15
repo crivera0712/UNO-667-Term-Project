@@ -1,31 +1,35 @@
+/**
+ * Type definitions for express-session
+ * This module extends the default express-session types with custom session data
+ * specific to our UNO game application.
+ */
+
+import { Session } from 'express-session';
+import { SessionData } from 'express-session';
+
+/**
+ * Express Session Module Extension
+ * Extends the default session data interface with application-specific properties
+ */
 declare module 'express-session' {
+    /**
+     * Custom session data interface for the UNO game
+     *
+     * @interface SessionData
+     * @property {number} [userId] - ID of the authenticated user
+     * @property {Object} [user] - User object containing authenticated user details
+     * @property {number} user.id - Unique identifier of the user
+     * @property {string} user.username - Username of the authenticated user
+     * @property {string} user.email - Email address of the authenticated user
+     * @property {boolean} [authenticated] - Flag indicating authentication status
+     */
     interface SessionData {
         userId?: number;
-        username?: string;
+        user?: {
+            id: number;
+            username: string;
+            email: string;
+        };
         authenticated?: boolean;
-        user?: any;
-        [key: string]: any;
     }
-}
-
-declare module 'connect-pg-simple' {
-    import { Store, SessionOptions } from 'express-session';
-    import { Pool } from 'pg';
-
-    interface PgStoreOptions {
-        pool: Pool;
-        tableName?: string;
-        schemaName?: string;
-        ttl?: number;
-        createTableIfMissing?: boolean;
-        pruneSessionInterval?: number;
-        errorLog?: (error: Error) => void;
-    }
-
-    class PgStore extends Store {
-        constructor(options: PgStoreOptions);
-    }
-
-    function connectPgSimple(session: any): typeof PgStore;
-    export = connectPgSimple;
 }
