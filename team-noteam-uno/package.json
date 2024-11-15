@@ -12,34 +12,40 @@
     "build:dev": "webpack build --mode development --watch",
     "server:dev": "nodemon --exec ts-node src/server/index.ts --ext js,ts,css,ejs --ignore src/public/js",
     "start:dev": "concurrently \"npm run server:dev\" \"npm run build:dev\"",
-    "migrate": "node src/scripts/migrate.js"
+    "migrate": "node src/scripts/migrate.js",
+    "lint": "prettier --write \"src/**/*.{ts,js,json,css,scss,md}\"",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "Gabriel Fernandez",
   "license": "ISC",
   "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/connect-livereload": "^0.6.3",
     "@types/cookie-parser": "^1.4.7",
     "@types/express": "^5.0.0",
+    "@types/express-flash": "^0.0.5",
+    "@types/express-session": "^1.18.0",
+    "@types/http-errors": "^2.0.4",
+    "@types/livereload": "^0.9.5",
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.8.0",
-    "@types/webpack": "^5.28.5",
-    "@types/livereload": "^0.9.5",
-    "@types/connect-livereload": "^0.6.3",
     "@types/pg": "^8.11.0",
+    "@types/socket.io": "^3.0.2",
+    "@types/webpack": "^5.28.5",
+    "concurrently": "^8.2.2",
+    "connect-livereload": "^0.6.1",
     "husky": "^9.1.6",
     "lint-staged": "^15.2.10",
+    "livereload": "^0.9.3",
     "prettier": "^3.3.3",
+    "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3",
     "webpack": "^5.89.0",
-    "webpack-cli": "^5.1.4",
-    "ts-loader": "^9.5.1",
-    "livereload": "^0.9.3",
-    "connect-livereload": "^0.6.1",
-    "concurrently": "^8.2.2"
+    "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "@types/http-errors": "^2.0.4",
     "bcrypt": "^5.1.1",
     "connect-pg-simple": "^9.0.1",
     "cookie-parser": "^1.4.7",
@@ -53,9 +59,12 @@
     "nodemon": "^3.1.7",
     "pg": "^8.11.3",
     "pg-promise": "^11.5.4",
-    "save-dev": "^0.0.1-security"
+    "socket.io": "^4.8.1"
   },
   "lint-staged": {
     "**/*": "prettier --write --ignore-unknown"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

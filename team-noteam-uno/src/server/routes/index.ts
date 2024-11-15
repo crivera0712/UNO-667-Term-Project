@@ -34,6 +34,13 @@ export { default as home } from "./home";
 export { default as leaderboard } from "./leaderboard";
 
 /**
+ * Message Test Routes
+ * Handles the test messaging functionality
+ * Routes: /messagetest
+ */
+export { default as messagetest } from "./messagetest";
+
+/**
  * Game Rules Routes
  * Handles the display of UNO game rules and instructions
  * Routes: /rules

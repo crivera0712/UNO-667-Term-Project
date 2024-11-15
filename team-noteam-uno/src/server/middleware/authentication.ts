@@ -5,8 +5,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { Session } from 'express-session';
-
+import { Session, SessionData } from 'express-session';
 /**
  * Custom request interface that extends Express Request
  * Adds typing for session data and flash messages
@@ -50,11 +49,13 @@ interface AuthenticatedRequest extends Request {
  * @param {NextFunction} next - Express next middleware function
  */
 export const sessionMiddleware = (
-    request: AuthenticatedRequest,
+    request: Request,
     response: Response,
     next: NextFunction
 ): void => {
-    response.locals.user = request.session?.user || null;
+    // Type assertion since we know the session will have our custom properties
+    const req = request as AuthenticatedRequest;
+    response.locals.user = req.session?.user || null;
     next();
 };
 
