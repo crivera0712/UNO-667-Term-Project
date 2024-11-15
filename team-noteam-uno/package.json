@@ -5,9 +5,12 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start:dev": "nodemon --exec ts-node src/server/index.ts",
     "start": "ts-node src/server/index.ts",
-    "prepare": "husky"
+    "prepare": "husky",
+    "build": "webpack build",
+    "build:dev": "webpack build --mode development --watch",
+    "server:dev": "nodemon --exec ts-node src/server/index.ts --ext js,css,ejs --ignore src/public/js",
+    "start:dev": "concurrently --names server,frontend -c blue,green \"npm run server:dev\" \"npm run build:dev\""
   },
   "keywords": [],
   "author": "Gabriel Fernandez",
@@ -17,11 +20,20 @@
     "@types/express": "^5.0.0",
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.8.0",
+    "@types/webpack": "^5.28.5",
+    "@types/livereload": "^0.9.5",
+    "@types/connect-livereload": "^0.6.3",
     "husky": "^9.1.6",
     "lint-staged": "^15.2.10",
     "prettier": "^3.3.3",
     "ts-node": "^10.9.2",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4",
+    "ts-loader": "^9.5.1",
+    "livereload": "^0.9.3",
+    "connect-livereload": "^0.6.1",
+    "concurrently": "^8.2.2"
   },
   "dependencies": {
     "@types/http-errors": "^2.0.4",
