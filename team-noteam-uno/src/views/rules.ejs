@@ -57,13 +57,22 @@
         <div class="absolute bottom-10 left-20 w-12 h-16 bg-blue-500 rounded-lg rotate-45 animate-float opacity-10" style="animation-delay: 2s;"></div>
     </div>
 
-    <!-- Back Button -->
-    <a href="/" class="absolute top-6 left-6 group flex items-center space-x-2 text-white/80 hover:text-white transition-all duration-300 z-10">
-        <svg class="w-6 h-6 transform group-hover:-translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-        </svg>
-        <span class="text-lg font-semibold tracking-wide">Back to Home</span>
+    <a href="/" class="back-button absolute top-6 left-6 z-10 text-red-500 hover:text-red-400 font-bold text-lg uppercase tracking-wide flex items-center gap-2 bg-black/80 px-5 py-3 rounded-full border border-red-500/30 hover:border-red-500/50 transition-all duration-300 hover:-translate-x-1">
+        <span class="text-2xl">←</span>
+        Back
     </a>
+
+    <style>
+        .back-button {
+            text-shadow: 0 0 15px rgba(255, 0, 0, 0.4);
+            box-shadow: 0 0 20px rgba(20, 20, 20, 0.8);
+            backdrop-filter: blur(5px);
+        }
+
+        .back-button:hover {
+            text-shadow: 0 0 25px rgba(255, 0, 0, 0.7);
+        }
+    </style>
 
     <div class="container mx-auto px-4 py-16 relative z-10">
         <!-- Title Section -->

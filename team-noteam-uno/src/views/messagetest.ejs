@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Test</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .message-container {
+            height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
+        .message {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <a href="/" class="back-button absolute top-6 left-6 z-10 text-red-500 hover:text-red-400 font-bold text-lg uppercase tracking-wide flex items-center gap-2 bg-black/80 px-5 py-3 rounded-full border border-red-500/30 hover:border-red-500/50 transition-all duration-300 hover:-translate-x-1">
+        <span class="text-2xl">←</span>
+        Back
+    </a>
+
+    <style>
+        .back-button {
+            text-shadow: 0 0 15px rgba(255, 0, 0, 0.4);
+            box-shadow: 0 0 20px rgba(20, 20, 20, 0.8);
+            backdrop-filter: blur(5px);
+        }
+
+        .back-button:hover {
+            text-shadow: 0 0 25px rgba(255, 0, 0, 0.7);
+        }
+    </style>
+
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-3xl mx-auto">
+            <h1 class="text-3xl font-bold mb-6 text-red-500">UNO Chat Test</h1>
+
+            <!-- Messages Container -->
+            <div id="messages" class="message-container bg-gray-800 rounded-lg p-4 mb-4">
+                <!-- Messages will be inserted here -->
+            </div>
+
+            <!-- Message Input Form -->
+            <form id="messageForm" class="flex gap-2">
+                <input
+                    type="text"
+                    id="messageInput"
+                    class="flex-1 bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    placeholder="Type your message..."
+                    autocomplete="off"
+                >
+                <button
+                    type="submit"
+                    class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition-colors duration-200"
+                >
+                    Send
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const messagesDiv = document.getElementById('messages');
+        const messageForm = document.getElementById('messageForm');
+        const messageInput = document.getElementById('messageInput');
+
+        // Generate a random username for testing
+        const username = `User${Math.floor(Math.random() * 1000)}`;
+
+        messageForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const message = messageInput.value.trim();
+
+            if (message) {
+                socket.emit('chat message', {
+                    username: username,
+                    message: message
+                });
+                messageInput.value = '';
+            }
+        });
+
+        socket.on('chat message', (data) => {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message bg-gray-700 rounded-lg p-3 mb-2';
+
+            messageElement.innerHTML = `
+                <span class="text-red-400 font-semibold">${data.username}:</span>
+                <span class="ml-2">${data.message}</span>
+            `;
+
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+    </script>
+</body>
+</html>

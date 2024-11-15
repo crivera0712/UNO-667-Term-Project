@@ -6,12 +6,14 @@
  */
 
 import express, { Request, Response, NextFunction } from "express";
+import { Server } from 'socket.io';
+import { createServer } from 'http';
 import createError from "http-errors";
 import path from "path";
 import cookieParser from "cookie-parser";
 import logger from "morgan";
 import flash from "express-flash";
-import { auth, games, home, leaderboard, rules } from "./routes";
+import { auth, games, home, leaderboard, rules, messagetest } from "./routes";
 import { sessionMiddleware } from "./middleware/authentication";
 import configureLiveReload from "../config/livereload";
 import { pool as sessionPool } from "../config/database";
@@ -87,6 +89,7 @@ app.use("/auth", auth);
 app.use("/games", games);
 app.use("/leaderboard", leaderboard);
 app.use("/rules", rules);
+app.use("/messagetest", messagetest);
 
 /**
  * Error Handling
@@ -118,7 +121,25 @@ const PORT = process.env.PORT || 3000;
 const startServer = async (): Promise<void> => {
     try {
         await configureLiveReload(app);
-        app.listen(PORT, () => {
+
+        const httpServer = createServer(app);
+        const io = new Server(httpServer);
+
+        // Socket.IO connection handling
+        io.on('connection', (socket) => {
+            console.log('A user connected');
+
+            socket.on('chat message', (msg) => {
+                io.emit('chat message', msg);
+            });
+
+            socket.on('disconnect', () => {
+                console.log('A user disconnected');
+            });
+        });
+
+
+        httpServer.listen(PORT, () => {
             console.log(`🚀 Server running on port ${PORT}`);
             console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
             console.log(`🔒 Session security: ${process.env.NODE_ENV === 'production' ? 'Secure' : 'Development'}`);
