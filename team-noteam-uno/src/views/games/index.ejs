@@ -1,0 +1,28 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+  <h1>Games</h1>
+  <div class="games-list">
+    <!-- List of available games will go here -->
+    <% if (locals.games && games.length > 0) { %>
+      <% games.forEach(game => { %>
+        <div class="game-item">
+          <h3>Game #<%= game.id %></h3>
+          <p>Players: <%= game.player_count %></p>
+          <a href="/games/<%= game.id %>" class="btn btn-primary">Join Game</a>
+        </div>
+      <% }) %>
+    <% } else { %>
+      <p>No active games available.</p>
+    <% } %>
+  </div>
+
+  <div class="create-game">
+    <h2>Create New Game</h2>
+    <form action="/games" method="POST">
+      <button type="submit" class="btn btn-success">Create Game</button>
+    </form>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

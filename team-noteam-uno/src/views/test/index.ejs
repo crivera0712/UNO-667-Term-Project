@@ -1,0 +1,20 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+  <h1>Test Page</h1>
+  <p>This is a test page to verify that routing and views are working correctly.</p>
+
+  <% if (locals.user) { %>
+    <div class="user-info">
+      <h2>Current User</h2>
+      <p>Username: <%= user.username %></p>
+      <p>Email: <%= user.email %></p>
+      <img src="https://www.gravatar.com/avatar/<%= user.gravatar %>?s=200" alt="User avatar" class="avatar">
+    </div>
+  <% } else { %>
+    <p>No user is currently logged in.</p>
+    <a href="/auth/login" class="btn btn-primary">Login</a>
+  <% } %>
+</div>
+
+<%- include('../partials/footer') %>

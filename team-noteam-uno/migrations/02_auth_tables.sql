@@ -1,0 +1,23 @@
+-- Up Migration
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP WITH TIME ZONE,
+    is_active BOOLEAN DEFAULT true
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+    sid VARCHAR NOT NULL COLLATE "default" PRIMARY KEY,
+    sess JSON NOT NULL,
+    expire TIMESTAMP(6) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS IDX_session_expire ON sessions (expire);
+
+-- Down Migration
+DROP INDEX IF EXISTS IDX_session_expire;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS users;

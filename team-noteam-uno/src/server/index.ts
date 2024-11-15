@@ -1,78 +1,91 @@
 import express, { Request, Response, NextFunction } from "express";
-import path from "path";
 import createError from "http-errors";
+import path from "path";
 import cookieParser from "cookie-parser";
 import logger from "morgan";
-import dotenv from "dotenv";
-import connectLivereload from "connect-livereload";
-import livereload from "livereload";
+import flash from "express-flash";
+import { auth, games, home, mainLobby, test, leaderboard, rules } from "./routes";
+import { sessionMiddleware } from "./middleware/authentication";
+import configureLiveReload from "./config/livereload";
+import { sessionPool } from "./db/connection";
 
-// Load environment variables
-dotenv.config();
+const session = require('express-session');
+const connectPgSimple = require('connect-pg-simple');
 
 // Initialize express app
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// View engine setup
-app.set("views", path.join(process.cwd(), "src", "views"));
+// Setup view engine
+app.set("views", path.join(__dirname, "../views"));
 app.set("view engine", "ejs");
 
-// Middleware
+// Configure middleware
 app.use(logger("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+app.use(express.static(path.join(__dirname, "../public")));
 
-// Static files
-const staticPath = path.join(process.cwd(), "src", "public");
-app.use(express.static(staticPath));
+// Configure session handling
+const PostgresStore = connectPgSimple(session);
 
-// LiveReload setup for development
-if (process.env.NODE_ENV === "development") {
-  try {
-    const liveReloadPort = 35729; // Default LiveReload port
-    const reloadServer = livereload.createServer({
-      port: liveReloadPort
-    });
-    reloadServer.watch(staticPath);
-    reloadServer.server.once("connection", () => {
-      setTimeout(() => {
-        reloadServer.refresh("/");
-      }, 100);
-    });
-    app.use(connectLivereload({
-      port: liveReloadPort
+app.use(
+    session({
+        store: new PostgresStore({
+            pool: sessionPool,
+            tableName: "session",
+            createTableIfMissing: true
+        }),
+        secret: process.env.SESSION_SECRET || "your_secret_key",
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+            secure: process.env.NODE_ENV === "production"
+        }
     }));
-    console.log(`LiveReload server running on port ${liveReloadPort}`);
-  } catch (error: any) {
-    console.warn("LiveReload server failed to start:", error.message);
-  }
-}
+app.use(flash());
 
-// Routes
-import routes from './routes';
-app.use('/', routes);
+// Make user data available to templates
+app.use(sessionMiddleware);
 
-// 404 Handler
+// Configure routes
+app.use("/", home);
+app.use("/auth", auth);
+app.use("/games", games);
+app.use("/main-lobby", mainLobby);
+app.use("/test", test);
+app.use("/leaderboard", leaderboard);
+app.use("/rules", rules);
+
+// Handle 404 errors
 app.use((_req: Request, _res: Response, next: NextFunction) => {
-  next(createError(404));
+    next(createError(404));
 });
 
-// Error Handler
+// Global error handler
 app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
-  // set locals, only providing error in development
-  res.locals = {
-    message: err.message,
-    error: req.app.get("env") === "development" ? err : {}
-  };
-
-  // render the error page
-  res.status(err.status || 500);
-  res.render("error");
+    res.locals.message = err.message;
+    res.locals.error = req.app.get("env") === "development" ? err : {};
+    res.status(err.status || 500);
+    res.render("error");
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+const PORT = process.env.PORT || 3000;
+
+const startServer = async (): Promise<void> => {
+    try {
+        await configureLiveReload(app);
+        app.listen(PORT, () => {
+            console.log(`🚀 Server running on port ${PORT}`);
+            console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+            console.log(`🔒 Session security: ${process.env.NODE_ENV === 'production' ? 'Secure' : 'Development'}`);
+        });
+    } catch (error) {
+        console.error('Failed to start server:', error);
+        process.exit(1);
+    }
+};
+
+startServer();

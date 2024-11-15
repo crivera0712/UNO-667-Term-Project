@@ -4,10 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Error - UNO Game</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
 <body>
-    <h1><%= message %></h1>
-    <h2><%= error.status %></h2>
-    <pre><%= error.stack %></pre>
+    <div class="container mt-5">
+        <div class="alert alert-danger">
+            <h1><%= message %></h1>
+            <% if (error && error.status) { %>
+                <h2><%= error.status %></h2>
+            <% } %>
+            <% if (error && error.stack && process.env.NODE_ENV === 'development') { %>
+                <pre><%= error.stack %></pre>
+            <% } %>
+        </div>
+    </div>
 </body>
 </html>
