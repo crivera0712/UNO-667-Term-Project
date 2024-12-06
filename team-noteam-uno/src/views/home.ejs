@@ -95,6 +95,28 @@
                 <!-- Shine effect -->
                 <div class="absolute inset-0 h-full w-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
             </a>
+        <% } else { %>
+            <!-- Logout Button -->
+            <form action="/auth/logout" method="POST">
+                <button type="submit" class="group relative inline-flex items-center justify-center overflow-hidden rounded-2xl p-[4px] hover:cursor-pointer">
+                    <!-- Animated border gradient -->
+                    <div class="absolute inset-0 rounded-2xl bg-gradient-to-r from-red-600 via-yellow-500 to-red-600 group-hover:bg-gradient-to-r group-hover:from-red-500 group-hover:via-yellow-400 group-hover:to-red-500 transition-all duration-300 animate-border-flow"></div>
+
+                    <!-- Button content -->
+                    <div class="relative flex items-center space-x-2 bg-black px-8 py-3 rounded-xl transition-all duration-400 ease-out group-hover:bg-black/90">
+                        <i class="fas fa-sign-out-alt text-xl text-white group-hover:rotate-12 transition-transform duration-300"></i>
+                        <span class="relative bg-gradient-to-r from-white to-gray-100 bg-clip-text text-lg font-bold text-transparent">
+                            LOGOUT
+                        </span>
+
+                        <!-- Glow effect -->
+                        <div class="absolute inset-0 h-full w-full rounded-xl bg-gradient-to-r from-red-600/20 to-yellow-500/20 blur-lg opacity-0 transition-opacity duration-500 group-hover:opacity-100"></div>
+                    </div>
+
+                    <!-- Shine effect -->
+                    <div class="absolute inset-0 h-full w-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                </button>
+            </form>
         <% } %>
     </div>
 
