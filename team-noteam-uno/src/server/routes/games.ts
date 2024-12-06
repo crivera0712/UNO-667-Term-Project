@@ -1,5 +1,6 @@
 import express, { Request } from "express";
 import { gamesService } from "../../services/games.service";
+import { requireAuth } from "../middleware/authentication";
 
 interface AuthenticatedRequest extends Request {
     session: Request['session'] & {
@@ -8,6 +9,9 @@ interface AuthenticatedRequest extends Request {
 }
 
 const router = express.Router();
+
+// Add requireAuth middleware to protect all game routes
+router.use(requireAuth);
 
 router.get("/", (_request, response) => {
     response.render("gameLobby", { title: "Game Lobby" });

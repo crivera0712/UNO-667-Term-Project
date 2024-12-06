@@ -164,17 +164,20 @@ const startServer = async (): Promise<void> => {
             resave: false,
             saveUninitialized: false
         })));
-        // Middleware to set socket data from session
-        io.use((socket, next) => {
+
+        // Middleware to set socket data from session and check authentication
+        io.use((socket: Socket, next: Function) => {
             const session = (socket.request as any).session;
             if (session && session.user) {
                 socket.data.userId = session.user.id;
                 socket.data.username = session.user.username;
+                next();
+            } else {
+                next(new Error('Authentication required'));
             }
-            next();
         });
+
         io.on('connection', (socket: Socket) => {
-            console.log('Socket connected with data:', socket.data);
 
             // Handle joining game room
             socket.on('join_game_room', (data: { gameId: string }, callback: (response: any) => void) => {
