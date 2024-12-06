@@ -17,7 +17,7 @@
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],
-  "author": "Gabriel Fernandez",
+  "author": "Aldo Zaboni",
   "license": "ISC",
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",

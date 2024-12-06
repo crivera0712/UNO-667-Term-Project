@@ -1,5 +1,6 @@
 <!-- Tailwind CSS via CDN (for development only) -->
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="/socket.io/socket.io.js"></script>
 <script>
     tailwind.config = {
         theme: {
@@ -121,20 +122,60 @@
             </div>
         </div>
     </div>
-</div>
-
 <script>
+    const socket = io();
+
     function createGame() {
-        // TODO: Implement game creation logic
-        console.log('Creating new game...');
+        const passcode = prompt('Enter a 4-digit passcode for your game:');
+        if (!passcode) return;
+
+        if (!/^\d{4}$/.test(passcode)) {
+            alert('Passcode must be exactly 4 digits');
+            return;
+        }
+
+        socket.emit('create_game', { passcode }, (response) => {
+            console.log('Create game response:', response);
+            if (response.error) {
+                alert(response.error);
+            } else if (response.success && response.gameId) {
+                console.log('Redirecting to waiting room:', `/games/waiting/${response.gameId}`);
+                window.location.href = `/games/waiting/${response.gameId}`;
+            } else {
+                alert('Something went wrong creating the game');
+            }
+        });
+    }
+    function joinGame(passcode) {
+        if (!passcode) {
+            passcode = prompt('Enter the 4-digit game passcode:');
+            if (!passcode) return;
+        }
+
+        if (!/^\d{4}$/.test(passcode)) {
+            alert('Passcode must be exactly 4 digits');
+            return;
+        }
+        socket.emit('join_game', { passcode }, (response) => {
+            if (response.error) {
+                alert(response.error);
+            } else {
+                alert('Successfully joined the game!');
+                window.location.href = `/games/waiting/${response.gameId}`;
+            }
+        });
     }
 
-    function joinGame() {
-        // TODO: Implement game joining logic
-        console.log('Joining existing game...');
-    }
+    // Socket.IO event handlers
+    socket.on('games_update', (games) => {
+        updateActiveGames(games);
+    });
 
-    // Example function to add active games (to be implemented with real data)
+    socket.on('player_joined', (data) => {
+        console.log(`${data.username} joined the game`);
+    });
+
+    // Function to update active games display
     function updateActiveGames(games) {
         const container = document.getElementById('activeGames');
         if (!games || games.length === 0) {
@@ -145,13 +186,29 @@
         container.innerHTML = games.map(game => `
             <div class="bg-white/5 rounded-xl p-6 flex items-center justify-between hover:bg-white/10 transition-all duration-300">
                 <div>
-                    <h4 class="font-bold text-lg">${game.name}</h4>
-                    <p class="text-sm text-gray-400">${game.players}/${game.maxPlayers} Players</p>
+                    <h4 class="font-bold text-lg">Game #${game.passcode}</h4>
+                    <p class="text-sm text-gray-400">${game.players.length}/10 Players</p>
+                    <p class="text-xs text-gray-500">Status: ${game.status}</p>
                 </div>
-                <button class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors duration-200">
-                    Join
-                </button>
+                ${game.status === 'waiting' ? `
+                    <button onclick="joinGame('${game.passcode}')"
+                            class="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors duration-200">
+                        Join
+                    </button>
+                ` : `
+                    <span class="px-4 py-2 bg-gray-500 rounded-lg">
+                        ${game.status}
+                    </span>
+                `}
             </div>
         `).join('');
     }
+
+    // Initial games fetch
+    socket.emit('get_games', {}, (response) => {
+        if (response.games) {
+            updateActiveGames(response.games);
+        }
+    });
 </script>
+</div>

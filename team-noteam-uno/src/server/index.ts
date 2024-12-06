@@ -6,7 +6,7 @@
  */
 
 import express, { Request, Response, NextFunction } from "express";
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import { createServer } from 'http';
 import createError from "http-errors";
 import path from "path";
@@ -17,11 +17,13 @@ import { auth, games, home, leaderboard, rules, messagetest } from "./routes";
 import { sessionMiddleware } from "./middleware/authentication";
 import configureLiveReload from "../config/livereload";
 import { pool as sessionPool } from "../config/database";
+import { gamesService } from "../services/games.service";
 
 /**
  * External dependencies that don't support ES modules
  * These must be imported using require() syntax
  */
+
 const session = require('express-session');
 const connectPgSimple = require('connect-pg-simple');
 
@@ -148,16 +150,211 @@ const startServer = async (): Promise<void> => {
         const httpServer = createServer(app);
         const io = new Server(httpServer);
 
-        // Socket.IO connection handling
-        io.on('connection', (socket) => {
+        // Create a wrapper for the session middleware
+        const wrap = (middleware: any) => (socket: any, next: any) => middleware(socket.request, {}, next);
+
+        // Apply session middleware to Socket.IO
+        io.use(wrap(session({
+            store: new PostgresStore({
+                pool: sessionPool,
+                tableName: "session",
+                createTableIfMissing: true
+            }),
+            secret: process.env.SESSION_SECRET || "your_secret_key",
+            resave: false,
+            saveUninitialized: false
+        })));
+        // Middleware to set socket data from session
+        io.use((socket, next) => {
+            const session = (socket.request as any).session;
+            if (session && session.user) {
+                socket.data.userId = session.user.id;
+                socket.data.username = session.user.username;
+            }
+            next();
+        });
+        io.on('connection', (socket: Socket) => {
+            console.log('Socket connected with data:', socket.data);
+
+            // Handle joining game room
+            socket.on('join_game_room', (data: { gameId: string }, callback: (response: any) => void) => {
+                console.log('Socket joining game room:', data.gameId);
+                socket.join(`game:${data.gameId}`);
+                callback({ success: true });
+            });
+
+            // Debug socket session
+            const session = (socket.request as any).session;
+            console.log('Socket session on connect:', session);
             console.log('A user connected');
 
-            socket.on('chat message', (msg) => {
+            // Handle game creation
+            socket.on('create_game', async (data: { passcode: string }, callback: (response: any) => void) => {
+                try {
+                    console.log('Creating game with passcode:', data.passcode);
+                    const session = (socket.request as any).session;
+                    console.log('Socket session:', session);
+
+                    const player = {
+                        id: socket.id,
+                        userId: socket.data.userId,
+                        username: socket.data.username || 'Anonymous',
+                        socket: socket,
+                        connected: true
+                    };
+                    console.log('Player data:', { ...player, socket: undefined });
+
+                    const game = gamesService.createGame(data.passcode, player);
+                    console.log('Game created:', { ...game, players: game.players.map(p => ({ ...p, socket: undefined })) });
+
+                    socket.join(`game:${game.id}`);
+
+                    // Emit initial player list to the creator
+                    const initialPlayers = gamesService.getGamePlayers(game.id);
+                    io.to(`game:${game.id}`).emit('player_joined', {
+                        playerId: player.id,
+                        username: player.username,
+                        players: initialPlayers
+                    });
+
+                    // Update all clients with new game list
+                    io.emit('games_update', gamesService.getAllGames().map(g => ({
+                        id: g.id,
+                        passcode: g.passcode,
+                        status: g.status,
+                        players: g.players.map(p => ({ id: p.id, username: p.username, connected: p.connected }))
+                    })));
+
+                    callback({ success: true, gameId: game.id });
+                } catch (error: any) {
+                    console.error('Error creating game:', error);
+                    callback({ error: error.message });
+                }
+            });
+
+            // Handle game joining
+            socket.on('join_game', async (data: { passcode: string }, callback: (response: any) => void) => {
+                try {
+                    console.log('Attempting to join game with passcode:', data.passcode);
+                    const player = {
+                        id: socket.id,
+                        userId: socket.data.userId,
+                        username: socket.data.username || 'Anonymous',
+                        socket: socket,
+                        connected: true
+                    };
+                    console.log('Player attempting to join:', { ...player, socket: undefined });
+
+                    const game = gamesService.joinGame(data.passcode, player);
+                    console.log('Successfully joined game:', {
+                        gameId: game.id,
+                        passcode: game.passcode,
+                        playerCount: game.players.length
+                    });
+
+                    socket.join(`game:${game.id}`);
+
+                    // Get updated player list with connection status
+                    const updatedPlayers = gamesService.getGamePlayers(game.id);
+                    console.log('Sending updated player list:', updatedPlayers);
+
+                    // Emit to all clients in the game room
+                    io.to(`game:${game.id}`).emit('player_joined', {
+                        playerId: player.id,
+                        username: player.username,
+                        players: updatedPlayers
+                    });
+
+                    // Update all clients with new game list
+                    const gamesList = gamesService.getAllGames().map(g => ({
+                        id: g.id,
+                        passcode: g.passcode,
+                        status: g.status,
+                        players: g.players.map(p => ({ id: p.id, username: p.username, connected: p.connected }))
+                    }));
+                    io.emit('games_update', gamesList);
+
+                    callback({ success: true, gameId: game.id });
+                } catch (error: any) {
+                    console.error('Error joining game:', error);
+                    callback({ error: error.message });
+                }
+            });
+
+            // Handle getting game players
+            socket.on('get_game_players', (data: { gameId: string }, callback: (response: any) => void) => {
+                console.log('get_game_players request:', data);
+                try {
+                    const game = gamesService.getGameById(data.gameId);
+                    console.log('Found game:', game);
+                    if (game) {
+                        const players = game.players.map(p => ({
+                            id: p.id,
+                            username: p.username,
+                            connected: p.connected !== false,
+                            isReady: false
+                        }));
+                        console.log('Sending players:', players);
+                        callback({ players });
+                    } else {
+                        console.log('Game not found');
+                        callback({ players: [] });
+                    }
+                } catch (error) {
+                    console.error('Error getting game players:', error);
+                    callback({ error: 'Failed to get players' });
+                }
+            });
+
+            // Handle games list request
+            socket.on('get_games', (_data: any, callback: (response: any) => void) => {
+                const games = gamesService.getAllGames().map(game => ({
+                    ...game,
+                    players: game.players.map(p => ({ id: p.id, username: p.username }))
+                }));
+                callback({ games });
+            });
+
+            socket.on('chat message', (msg: any) => {
                 io.emit('chat message', msg);
+            });
+
+            socket.on('leave_game', (data: { gameId: string }) => {
+                const wasRemoved = gamesService.removePlayerFromGame(data.gameId, socket.id);
+                if (wasRemoved) {
+                    socket.leave(`game:${data.gameId}`);
+                    const game = gamesService.getGameById(data.gameId);
+                    if (game) {
+                        io.to(`game:${data.gameId}`).emit('player_left', {
+                            playerId: socket.id,
+                            username: socket.data.username,
+                            players: gamesService.getGamePlayers(data.gameId)
+                        });
+                        io.emit('games_update', gamesService.getAllGames());
+                    }
+                }
             });
 
             socket.on('disconnect', () => {
                 console.log('A user disconnected');
+                // Mark player as disconnected but don't remove immediately
+                const games = gamesService.getAllGames();
+                games.forEach(game => {
+                    const player = game.players.find(p => p.id === socket.id);
+                    if (player) {
+                        player.connected = false;
+                        io.to(`game:${game.id}`).emit('player_left', {
+                            playerId: socket.id,
+                            username: socket.data.username,
+                            players: game.players.map(p => ({
+                                id: p.id,
+                                username: p.username,
+                                connected: p.connected !== false,
+                                isReady: false
+                            }))
+                        });
+                    }
+                });
             });
         });
 

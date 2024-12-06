@@ -1,0 +1,228 @@
+<!-- Tailwind CSS via CDN (for development only) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                animation: {
+                    'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    'bounce-slow': 'bounce 2s infinite',
+                    'spin-slow': 'spin 3s linear infinite',
+                    'float': 'float 3s ease-in-out infinite',
+                    'glow': 'glow 2s ease-in-out infinite'
+                },
+                keyframes: {
+                    float: {
+                        '0%, 100%': { transform: 'translateY(0)' },
+                        '50%': { transform: 'translateY(-10px)' }
+                    },
+                    glow: {
+                        '0%, 100%': {
+                            'box-shadow': '0 0 15px rgba(255, 0, 0, 0.5)',
+                            'border-color': 'rgba(255, 0, 0, 0.7)'
+                        },
+                        '50%': {
+                            'box-shadow': '0 0 30px rgba(255, 68, 68, 0.8)',
+                            'border-color': 'rgba(255, 68, 68, 0.9)'
+                        }
+                    }
+                }
+            }
+        }
+    };
+</script>
+
+<div class="relative min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-red-700 via-gray-900 to-black text-white">
+    <!-- Back Button -->
+    <a href="/games" class="back-button absolute top-6 left-6 z-10 text-red-500 hover:text-red-400 font-bold text-lg uppercase tracking-wide flex items-center gap-2 bg-black/80 px-5 py-3 rounded-full border border-red-500/30 hover:border-red-500/50 transition-all duration-300 hover:-translate-x-1">
+        <span class="text-2xl">←</span>
+        Leave Game
+    </a>
+
+    <div class="container mx-auto px-4 py-16 relative z-10">
+        <!-- Game Info Section -->
+        <div class="text-center mb-12">
+            <h1 class="text-5xl font-black mb-4 bg-gradient-to-r from-red-400 via-white to-red-400 bg-clip-text text-transparent">
+                Waiting Lobby
+            </h1>
+            <div class="text-xl text-gray-300">
+                Game Code: <span class="font-mono font-bold text-red-400" id="gameCode"></span>
+            </div>
+        </div>
+
+        <!-- Players Section -->
+        <div class="max-w-3xl mx-auto">
+            <div class="bg-black/30 backdrop-blur-lg border border-white/10 rounded-3xl p-8">
+                <h2 class="text-2xl font-bold mb-6 text-center">Players</h2>
+                <div id="playersList" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    <!-- Players will be populated here -->
+                </div>
+
+                <!-- Start Game Button (visible only to creator) -->
+                <div class="mt-8 text-center" id="startGameContainer" style="display: none;">
+                    <button onclick="startGame()"
+                            class="bg-gradient-to-r from-red-500 to-red-700 text-white font-bold py-3 px-8 rounded-xl
+                                   transform transition-all duration-300 hover:scale-105 hover:shadow-lg
+                                   disabled:opacity-50 disabled:cursor-not-allowed">
+                        Start Game
+                    </button>
+                </div>
+            </div>
+
+            <!-- Game Status -->
+            <div class="mt-8 text-center">
+                <div class="inline-flex items-center gap-3 bg-black/50 px-6 py-3 rounded-full">
+                    <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    <span class="text-gray-300" id="gameStatus">Waiting for players...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    const socket = io({
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        reconnectionAttempts: 5
+    });
+
+    const gameId = '<%- gameId %>';
+    const isCreator = '<%- isCreator %>' === 'true';
+
+    // Debug connection and request players
+    socket.on('connect', () => {
+        console.log('Socket connected, joining game room...');
+        socket.emit('join_game_room', { gameId }, (response) => {
+            console.log('Joined game room:', response);
+            if (response.success) {
+                requestPlayerList();
+            }
+        });
+    });
+
+    socket.on('reconnect', () => {
+        console.log('Socket reconnected, rejoining game room...');
+        socket.emit('join_game_room', { gameId }, (response) => {
+            console.log('Rejoined game room:', response);
+            if (response.success) {
+                requestPlayerList();
+            }
+        });
+    });
+
+    function requestPlayerList() {
+        console.log('Requesting player list for game:', gameId);
+        socket.emit('get_game_players', { gameId }, (response) => {
+            console.log('Initial players response:', response);
+            if (response.error) {
+                console.error('Error getting players:', response.error);
+                return;
+            }
+            if (response.players) {
+                console.log('Updating player list with:', response.players);
+                updatePlayersList(response.players);
+            } else {
+                console.warn('No players in response');
+            }
+        });
+    }
+
+    // Update game code display
+    document.getElementById('gameCode').textContent = '<%- gameCode %>';
+
+    // Show start game button if user is the creator
+    if (isCreator) {
+        document.getElementById('startGameContainer').style.display = 'block';
+    }
+
+    function updatePlayersList(players) {
+        const playersList = document.getElementById('playersList');
+
+        // Create new HTML
+        const newHTML = players.map((player, index) => `
+            <div class="flex flex-col items-center space-y-2 transform transition-all duration-500"
+                 data-player-id="${player.id}">
+                <!-- UNO Card -->
+                <div class="w-32 h-48 relative group animate-float">
+                    <!-- Connection Status Indicator -->
+                    <div class="absolute -top-2 -right-2 z-10">
+                        <div class="w-4 h-4 rounded-full ${player.connected ? 'bg-green-500' : 'bg-red-500'} animate-pulse shadow-lg border-2 border-white"></div>
+                    </div>
+                    <!-- Card Background -->
+                    <div class="absolute inset-0 bg-gradient-to-br from-red-600 to-red-800 rounded-xl shadow-xl transform transition-transform duration-300 group-hover:-translate-y-2 ${player.connected ? '' : 'opacity-50'}">
+                        <!-- Card Border -->
+                        <div class="absolute inset-[2px] bg-gradient-to-br from-red-500 to-red-700 rounded-[10px]">
+                            <!-- Card Content -->
+                            <div class="h-full w-full flex flex-col items-center justify-center p-4">
+                                <!-- UNO Logo -->
+                                <div class="text-white font-bold text-2xl transform -rotate-45 bg-white/20 px-4 py-1 rounded-full">
+                                    UNO
+                                </div>
+                                <!-- Player Number -->
+                                <div class="mt-4 text-white/80 text-sm">
+                                    Player ${index + 1}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Player Username -->
+                <div class="text-center">
+                    <span class="text-lg font-semibold text-white">
+                        ${player.username !== 'Anonymous' ? player.username : 'Connecting...'}
+                    </span>
+                    <div class="text-sm ${player.isReady ? 'text-green-400' : 'text-yellow-400'} transition-colors duration-300">
+                        ${player.connected ? (player.isReady ? 'Ready' : 'Waiting...') : 'Disconnected'}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        // Update DOM
+        playersList.innerHTML = newHTML;
+
+        // Update game status with animation
+        const gameStatus = document.getElementById('gameStatus');
+        gameStatus.style.opacity = '0';
+        setTimeout(() => {
+            gameStatus.textContent = `Waiting for players (${players.length}/10)...`;
+            gameStatus.style.opacity = '1';
+        }, 300);
+    }
+
+    function startGame() {
+        socket.emit('start_game', { gameId }, (response) => {
+            if (response.error) {
+                alert(response.error);
+            }
+            // Game started successfully - will be handled by 'game_started' event
+        });
+    }
+
+    // Socket event listeners
+    socket.on('player_joined', (data) => {
+        console.log('Player joined event received:', data);
+        if (data.players) {
+            updatePlayersList(data.players);
+        }
+    });
+
+    socket.on('player_left', (data) => {
+        console.log('Player left event received:', data);
+        if (data.players) {
+            updatePlayersList(data.players);
+        }
+    });
+
+    socket.on('game_started', (data) => {
+        // Redirect to the game page
+        window.location.href = `/games/play/${data.gameId}`;
+    });
+
+    // Handle page unload
+    window.addEventListener('beforeunload', () => {
+        socket.emit('leave_game', { gameId });
+    });
+</script>
