@@ -197,10 +197,14 @@
             if (response.error) {
                 alert(response.error);
             }
-            // Game started successfully - will be handled by 'game_started' event
+            // Game started successfully - will be redirected by game_started event
         });
     }
 
+    socket.on('game_started', (data) => {
+        // Redirect to the game page
+        window.location.href = `/games/play/${data.gameId}`;
+    });
     // Socket event listeners
     socket.on('player_joined', (data) => {
         console.log('Player joined event received:', data);

@@ -310,6 +310,7 @@ const startServer = async (): Promise<void> => {
             });
 
             // Handle games list request
+            // Handle games list request
             socket.on('get_games', (_data: any, callback: (response: any) => void) => {
                 const games = gamesService.getAllGames().map(game => ({
                     ...game,
@@ -317,11 +318,82 @@ const startServer = async (): Promise<void> => {
                 }));
                 callback({ games });
             });
+            // Handle game chat
+            socket.on('game_chat', (data: { gameId: string; message: string }) => {
+                try {
+                    console.log('Received chat message:', data);
 
-            socket.on('chat message', (msg: any) => {
-                io.emit('chat message', msg);
+                    if (!data.gameId) {
+                        console.error('No gameId provided for chat message');
+                        return;
+                    }
+
+                    if (!socket.data.username) {
+                        console.error('No username found for socket');
+                        return;
+                    }
+
+                    const game = gamesService.getGameById(data.gameId);
+                    if (!game) {
+                        console.error('Game not found for chat message:', data.gameId);
+                        return;
+                    }
+
+                    // Verify the user is in the game
+                    const isPlayerInGame = game.players.some(p => p.userId === socket.data.userId);
+                    if (!isPlayerInGame) {
+                        console.error('User not in game:', socket.data.userId);
+                        return;
+                    }
+
+                    // Create chat message with user info
+                    const chatMessage = {
+                        username: socket.data.username,
+                        message: data.message,
+                        timestamp: new Date()
+                    };
+                    console.log('Emitting chat message:', chatMessage);
+
+                    // Emit to all players in the game room
+                    io.to(`game:${data.gameId}`).emit('game_chat', chatMessage);
+                    console.log('Message emitted to room:', `game:${data.gameId}`);
+
+                    // If message contains "uno" (case insensitive), emit a system message
+                    if (data.message.toLowerCase().includes('uno')) {
+                        io.to(`game:${data.gameId}`).emit('game_event', {
+                            message: `${chatMessage.username} called UNO!`
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error handling game chat:', error);
+                }
             });
 
+            // Handle game start
+            socket.on('start_game', (data: { gameId: string }, callback: (response: any) => void) => {
+                try {
+                    const game = gamesService.getGameById(data.gameId);
+                    if (!game) {
+                        return callback({ error: 'Game not found' });
+                    }
+
+                    // Update game status
+                    game.status = 'playing';
+
+                    // Notify all players in the game room
+                    io.to(`game:${game.id}`).emit('game_started', {
+                        gameId: game.id,
+                        status: 'playing'
+                    });
+
+                    callback({ success: true });
+                } catch (error: any) {
+                    console.error('Error starting game:', error);
+                    callback({ error: error.message });
+                }
+            });
+
+            // Handle leaving game
             socket.on('leave_game', (data: { gameId: string }) => {
                 const wasRemoved = gamesService.removePlayerFromGame(data.gameId, socket.id);
                 if (wasRemoved) {
@@ -338,6 +410,7 @@ const startServer = async (): Promise<void> => {
                 }
             });
 
+            // Handle disconnection
             socket.on('disconnect', () => {
                 console.log('A user disconnected');
                 // Mark player as disconnected but don't remove immediately

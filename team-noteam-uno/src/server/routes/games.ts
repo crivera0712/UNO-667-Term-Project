@@ -1,6 +1,5 @@
 import express, { Request } from "express";
 import { gamesService } from "../../services/games.service";
-import { requireAuth } from "../middleware/authentication";
 
 interface AuthenticatedRequest extends Request {
     session: Request['session'] & {
@@ -9,9 +8,6 @@ interface AuthenticatedRequest extends Request {
 }
 
 const router = express.Router();
-
-// Add requireAuth middleware to protect all game routes
-router.use(requireAuth);
 
 router.get("/", (_request, response) => {
     response.render("gameLobby", { title: "Game Lobby" });
@@ -49,4 +45,22 @@ router.get("/waiting/:gameId", (request: AuthenticatedRequest, response) => {
     });
 });
 
+// Add new route for the game view
+router.get("/play/:gameId", (request: AuthenticatedRequest, response) => {
+    const game = gamesService.getGameById(request.params.gameId);
+
+    if (!game) {
+        return response.redirect('/games');
+    }
+
+    if (game.status !== 'playing') {
+        return response.redirect(`/games/waiting/${game.id}`);
+    }
+
+    response.render("game", {
+        title: "UNO Game",
+        gameId: game.id,
+        gameCode: game.passcode
+    });
+});
 export default router;

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UNO Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body class="bg-gradient-to-br from-red-900 via-gray-900 to-black min-h-screen text-white">
+    <!-- Game Header -->
+    <header class="p-4 flex justify-between items-center bg-black/30">
+        <div class="text-2xl font-bold">UNO Game</div>
+        <div id="gameInfo" class="text-lg">Game #<span id="gameId"></span></div>
+    </header>
+
+    <!-- Game Area -->
+    <main class="container mx-auto p-4 flex flex-col h-[calc(100vh-8rem)]">
+        <!-- Opponents Area -->
+        <div class="grid grid-cols-3 gap-8 mb-8">
+            <!-- Left Side Opponents -->
+            <div class="flex flex-col items-center gap-4">
+                <div id="leftOpponents" class="space-y-4">
+                    <!-- Left side opponents will be added here -->
+                </div>
+            </div>
+
+            <!-- Top Opponents -->
+            <div class="flex justify-center">
+                <div id="topOpponents" class="flex gap-4">
+                    <!-- Top opponents will be added here -->
+                </div>
+            </div>
+
+            <!-- Right Side Opponents -->
+            <div class="flex flex-col items-center gap-4">
+                <div id="rightOpponents" class="space-y-4">
+                    <!-- Right side opponents will be added here -->
+                </div>
+            </div>
+        </div>
+        <!-- Play Area -->
+        <div class="flex-1 flex justify-center items-center gap-8">
+            <!-- Draw Pile -->
+            <div class="relative">
+                <div class="w-32 h-48 bg-red-600 rounded-xl border-4 border-white/20 shadow-xl flex items-center justify-center transform hover:scale-105 transition-transform cursor-pointer">
+                    <span class="text-4xl font-bold text-white">UNO</span>
+                </div>
+                <div class="absolute -top-2 -right-2">
+                    <span id="deckCount" class="bg-white text-black px-3 py-1 rounded-full text-sm font-bold">
+                        52
+                    </span>
+                </div>
+            </div>
+
+            <!-- Current Card -->
+            <div id="currentCard" class="w-32 h-48 bg-blue-500 rounded-xl border-4 border-white/20 shadow-xl flex items-center justify-center">
+                <span class="text-4xl font-bold">7</span>
+            </div>
+        </div>
+
+        <!-- Player's Hand -->
+        <div class="mt-8">
+            <div id="playerHand" class="flex justify-center gap-4 overflow-x-auto pb-4">
+                <!-- Player cards will be dynamically added here -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Chat Sidebar -->
+    <div class="fixed right-0 top-0 bottom-0 w-80 bg-black/80 border-l border-white/10 flex flex-col z-50">
+        <!-- Chat Header -->
+        <div class="p-4 border-b border-white/10">
+            <h3 class="text-lg font-bold">Game Chat</h3>
+        </div>
+
+        <!-- Messages Container -->
+        <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-4">
+            <!-- Messages will be inserted here -->
+        </div>
+
+        <!-- Chat Input -->
+        <form id="chatForm" class="p-4 border-t border-white/10">
+            <div class="flex gap-2">
+                <input
+                    type="text"
+                    id="messageInput"
+                    class="flex-1 bg-black/50 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 border border-white/20"
+                    placeholder="Type your message..."
+                    autocomplete="off"
+                >
+                <button
+                    type="submit"
+                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+                >
+                    Send
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Game Controls -->
+    <!-- Game Controls -->
+    <footer class="fixed bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-4">
+        <div class="container mx-auto flex justify-center gap-4">
+            <button id="unoButton" class="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-full font-bold transform hover:scale-105 transition-all">
+                UNO!
+            </button>
+            <button id="leaveGame" class="bg-gray-600 hover:bg-gray-700 px-6 py-2 rounded-full font-bold transform hover:scale-105 transition-all">
+                Leave Game
+            </button>
+        </div>
+    </footer>
+
+    <script>
+        const socket = io();
+        // Get gameId from URL path instead of query params
+        const pathParts = window.location.pathname.split('/');
+        const gameId = pathParts[pathParts.length - 1];
+
+        if (!gameId) {
+            console.error('No game ID found in URL');
+            window.location.href = '/games';
+        } else {
+            console.log('Game ID:', gameId);
+            // Set game ID in header
+            document.getElementById('gameId').textContent = gameId;
+        }
+        // Example cards for testing
+        const playerCards = [
+            { color: 'red', value: '7' },
+            { color: 'blue', value: '4' },
+            { color: 'green', value: 'Skip' },
+            { color: 'yellow', value: 'Reverse' },
+        ];
+
+        function createCard(card) {
+            const colorMap = {
+                red: 'bg-red-500',
+                blue: 'bg-blue-500',
+                green: 'bg-green-500',
+                yellow: 'bg-yellow-500'
+            };
+
+            const cardElement = document.createElement('div');
+            cardElement.className = `w-24 h-36 ${colorMap[card.color]} rounded-xl border-4 border-white/20 shadow-xl flex items-center justify-center transform hover:scale-110 transition-transform cursor-pointer`;
+            cardElement.innerHTML = `<span class="text-3xl font-bold text-white">${card.value}</span>`;
+
+            return cardElement;
+        }
+
+        // Initialize player's hand
+        const playerHand = document.getElementById('playerHand');
+        playerCards.forEach(card => {
+            playerHand.appendChild(createCard(card));
+        });
+
+        // Handle leaving game
+        document.getElementById('leaveGame').addEventListener('click', () => {
+            if (confirm('Are you sure you want to leave the game?')) {
+                socket.emit('leave_game', { gameId }, () => {
+                    window.location.href = '/games';
+                });
+            }
+        });
+
+        // UNO button handler
+        document.getElementById('unoButton').addEventListener('click', () => {
+            // TODO: Implement UNO call logic
+            console.log('UNO called!');
+        });
+
+        // Function to create opponent display
+        function createOpponentElement(player, cardCount) {
+            const element = document.createElement('div');
+            element.className = 'flex items-center gap-4 bg-black/30 p-4 rounded-xl';
+            element.innerHTML = `
+                <div class="relative">
+                    <!-- Opponent's Cards Stack -->
+                    <div class="relative w-16 h-24">
+                        ${Array(Math.min(3, cardCount)).fill(0).map((_, i) => `
+                            <div class="absolute bg-red-600 w-16 h-24 rounded-lg border-2 border-white/20 shadow-lg transform transition-all duration-300"
+                                 style="top: ${-i * 2}px; left: ${i * 2}px; z-index: ${i};">
+                                <div class="absolute inset-0 flex items-center justify-center">
+                                    <span class="text-xl font-bold text-white rotate-45">UNO</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <!-- Card Count Badge -->
+                    <div class="absolute -top-2 -right-2">
+                        <span class="bg-white text-black px-2 py-1 rounded-full text-xs font-bold">
+                            ${cardCount}
+                        </span>
+                    </div>
+                </div>
+                <!-- Player Info -->
+                <div class="flex flex-col">
+                    <span class="font-bold text-white">${player.username}</span>
+                    <span class="text-sm text-gray-400">${player.status || 'Waiting...'}</span>
+                </div>
+                <!-- Connection Status -->
+                <div class="w-3 h-3 rounded-full ${player.connected ? 'bg-green-500' : 'bg-red-500'} animate-pulse"></div>
+            `;
+            return element;
+        }
+
+        // Function to update opponents display
+        function updateOpponents(opponents) {
+            const leftOpponents = document.getElementById('leftOpponents');
+            const topOpponents = document.getElementById('topOpponents');
+            const rightOpponents = document.getElementById('rightOpponents');
+
+            // Clear existing opponents
+            leftOpponents.innerHTML = '';
+            topOpponents.innerHTML = '';
+            rightOpponents.innerHTML = '';
+
+            // Distribute opponents around the table
+            opponents.forEach((opponent, index) => {
+                const opponentElement = createOpponentElement(opponent, opponent.cardCount || 7);
+
+                if (opponents.length <= 3) {
+                    // All opponents at the top
+                    topOpponents.appendChild(opponentElement);
+                } else {
+                    // Distribute around the table
+                    if (index < Math.floor(opponents.length / 3)) {
+                        leftOpponents.appendChild(opponentElement);
+                    } else if (index < Math.floor(2 * opponents.length / 3)) {
+                        topOpponents.appendChild(opponentElement);
+                    } else {
+                        rightOpponents.appendChild(opponentElement);
+                    }
+                }
+            });
+        }
+
+        // Example opponents for testing
+        const testOpponents = [
+            { username: 'Player 1', cardCount: 7, connected: true, status: 'Their turn' },
+            { username: 'Player 2', cardCount: 4, connected: true },
+            { username: 'Player 3', cardCount: 1, connected: true, status: 'UNO!' },
+            { username: 'Player 4', cardCount: 5, connected: false }
+        ];
+
+        // Initialize with test opponents
+        updateOpponents(testOpponents);
+
+        // Socket event listener for opponent updates
+        socket.on('game_state_update', (data) => {
+            if (data.opponents) {
+                updateOpponents(data.opponents);
+            }
+        });
+
+        // Chat Functionality
+        const messagesDiv = document.getElementById('messages');
+        const chatForm = document.getElementById('chatForm');
+        const messageInput = document.getElementById('messageInput');
+
+        // Function to create a message element
+        function createMessageElement(data) {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'bg-black/30 rounded-lg p-3 break-words';
+
+            // System messages have a different style
+            if (data.type === 'system') {
+                messageElement.className += ' text-yellow-400 text-sm italic';
+                messageElement.textContent = data.message;
+            } else {
+                messageElement.innerHTML = `
+                    <span class="text-red-400 font-semibold">${data.username}:</span>
+                    <span class="ml-2 text-white">${data.message}</span>
+                `;
+            }
+
+            return messageElement;
+        }
+
+        // Handle chat form submission
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const message = messageInput.value.trim();
+
+            if (message) {
+                console.log('Sending message:', { gameId, message });
+                // Emit the chat message to the game room
+                socket.emit('game_chat', {
+                    gameId,
+                    message: message
+                });
+                messageInput.value = '';
+            }
+        });
+
+        // Listen for chat messages
+        socket.on('game_chat', (data) => {
+            console.log('Received chat message:', data);
+            const messageElement = createMessageElement(data);
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            console.log('Message added to chat display');
+        });
+
+        // Listen for game events that should appear in chat
+        socket.on('game_event', (data) => {
+            const messageElement = createMessageElement({
+                type: 'system',
+                message: data.message
+            });
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+
+        // Join the game room on connection
+        socket.emit('join_game_room', { gameId }, (response) => {
+            if (!response.success) {
+                console.error('Failed to join game room');
+            }
+        });
+    </script>
+</body>
+</html>
