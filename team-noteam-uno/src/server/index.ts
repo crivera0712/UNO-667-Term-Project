@@ -105,18 +105,41 @@ app.use((_req: Request, _res: Response, next: NextFunction) => {
  * In development mode, includes full error details
  */
 app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
-    res.locals.message = err.message;
-    res.locals.error = req.app.get("env") === "development" ? err : {};
-    res.status(err.status || 500);
-    res.render("error");
+    // Only send error response if headers haven't been sent
+    if (!res.headersSent) {
+        res.locals.message = err.message;
+        res.locals.error = req.app.get("env") === "development" ? err : {};
+        res.status(err.status || 500);
+        res.render("error");
+    }
 });
 
 /**
  * Server Initialization
- * Starts the Express server with the configured port
- * Includes live reload support for development
+ * Sets up and starts the HTTP server with Socket.IO integration
  */
 const PORT = process.env.PORT || 3000;
+
+const findAvailablePort = async (startPort: number): Promise<number> => {
+    const maxPort = startPort + 10; // Try up to 10 ports
+    for (let port = startPort; port <= maxPort; port++) {
+        try {
+            await new Promise((resolve, reject) => {
+                const server = createServer();
+                server.listen(port)
+                    .once('listening', () => {
+                        server.close();
+                        resolve(port);
+                    })
+                    .once('error', reject);
+            });
+            return port;
+        } catch (err) {
+            continue;
+        }
+    }
+    throw new Error('No available ports found');
+};
 
 const startServer = async (): Promise<void> => {
     try {
@@ -138,9 +161,9 @@ const startServer = async (): Promise<void> => {
             });
         });
 
-
-        httpServer.listen(PORT, () => {
-            console.log(`🚀 Server running on port ${PORT}`);
+        const availablePort = await findAvailablePort(Number(PORT));
+        httpServer.listen(availablePort, () => {
+            console.log(`🚀 Server running on port ${availablePort}`);
             console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
             console.log(`🔒 Session security: ${process.env.NODE_ENV === 'production' ? 'Secure' : 'Development'}`);
         });

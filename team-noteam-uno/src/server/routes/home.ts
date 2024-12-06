@@ -24,8 +24,10 @@ const router = express.Router();
  * @param {Object} data - Template data
  * @param {string} data.title - Page title set to "Home"
  */
-router.get("/", (_request, response) => {
-    response.render("home", { title: "Home" });
+router.get("/", (request, response) => {
+    if (!response.headersSent) {
+        response.render("home", { title: "Home" });
+    }
 });
 
 export default router;

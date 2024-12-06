@@ -26,10 +26,10 @@ dotenv.config();
  * - DB_PORT: Database port (defaults to 5432 if not specified)
  */
 const pool = new Pool({
-    user: process.env.DB_USER,          // Database user from environment
-    host: process.env.DB_HOST,          // Database host from environment
-    database: process.env.DB_NAME,      // Database name from environment
-    password: process.env.DB_PASSWORD,  // Database password from environment
+    user: process.env.DB_USER || 'postgres',          // Database user from environment
+    host: process.env.DB_HOST || 'localhost',          // Database host from environment
+    database: process.env.DB_NAME || 'uno_dev',      // Database name from environment
+    password: process.env.DB_PASSWORD || 'postgres',  // Database password from environment
     port: parseInt(process.env.DB_PORT || '5432'),  // Port with fallback to 5432
 });
 
