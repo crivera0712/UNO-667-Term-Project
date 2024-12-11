@@ -1,4 +1,7 @@
 import { Socket } from 'socket.io';
+import { Deck } from '../game/deck';
+import { Card } from '../game/card';
+import { Rules } from '../game/rules';
 
 interface Game {
     id: string;
@@ -6,6 +9,9 @@ interface Game {
     players: Player[];
     status: 'waiting' | 'playing' | 'finished';
     createdAt: Date;
+    deck: Deck;
+    topCard: Card | null; // Card currently on the discard pile
+    isReversed: boolean;  // Tracks the play direction
 }
 
 interface Player {
@@ -30,6 +36,7 @@ class GamesService {
     }
 
     createGame(passcode: string, creator: Player): Game {
+        console.log(`Attempting to create game with passcode: ${passcode}`);
         // Validate passcode format (4 digits)
         if (!/^\d{4}$/.test(passcode)) {
             throw new Error('Passcode must be exactly 4 digits');
@@ -40,6 +47,9 @@ class GamesService {
             throw new Error('A game with this passcode already exists');
         }
 
+        const deck = new Deck();
+        const firstCard = deck.drawCard(); // Draw the first card to start the game
+
         const game: Game = {
             id: Math.random().toString(36).substring(2, 15),
             passcode,
@@ -48,48 +58,43 @@ class GamesService {
                 connected: true
             }],
             status: 'waiting',
-            createdAt: new Date()
+            createdAt: new Date(),
+            deck,
+            topCard: firstCard,
+            isReversed: false
         };
+
         // Store the game using both passcode and ID
         this.games.set(passcode, game);
         this.games.set(game.id, game);
 
-        console.log('Game stored with passcode:', passcode);
-        console.log('Game stored with ID:', game.id);
-        console.log('Current games in Map:', Array.from(this.games.keys()));
+        console.log('Game successfully created');
 
         return game;
     }
 
     getGame(identifier: string): Game | undefined {
-        console.log('Looking for game with identifier:', identifier);
-        console.log('Current games in Map:', Array.from(this.games.entries())
-            .map(([key, game]) => ({ key, gameId: game.id, passcode: game.passcode })));
-
-        // First try to get game by passcode
+        console.log(`Fetching game with identifier: ${identifier}`);
         const game = this.games.get(identifier);
-        if (game) {
-            console.log('Found game by passcode:', game.id);
-            return game;
-        }
+        if (game) return game;
 
-        // If not found by passcode, try to find by ID
-        const gameById = Array.from(this.games.values()).find(g => g.id === identifier);
-        if (gameById) {
-            console.log('Found game by ID:', gameById.id);
-            return gameById;
+        for (const existingGame of this.games.values()) {
+            if (existingGame.id === identifier) {
+                return existingGame;
+            }
         }
+        return undefined; // No matching game found
+    }
 
-        console.log('Game not found for identifier:', identifier);
-        return undefined;
+    getGameById(id: string): Game | undefined {
+        return Array.from(this.games.values()).find(game => game.id === id);
     }
 
     joinGame(passcode: string, player: Player): Game {
-        console.log('Attempting to join game with passcode:', passcode);
+        console.log(`Player attempting to join game with passcode: ${passcode}`);
         const game = this.getGame(passcode);
 
         if (!game) {
-            console.log('Game not found for passcode:', passcode);
             throw new Error('Game not found');
         }
 
@@ -101,64 +106,90 @@ class GamesService {
             throw new Error('Game is full');
         }
 
-        // Check if player is already in the game
         const existingPlayerIndex = game.players.findIndex(p => p.userId === player.userId);
         if (existingPlayerIndex !== -1) {
-            // Update existing player's connection
             game.players[existingPlayerIndex].socket = player.socket;
             game.players[existingPlayerIndex].connected = true;
-            console.log('Player reconnected to game');
         } else {
-            // Add new player
             game.players.push({
                 ...player,
                 connected: true
             });
-            console.log('New player joined game');
         }
 
-        // Update game in both storage locations
-        this.games.set(game.passcode, game);
-        this.games.set(game.id, game);
+        console.log(`Player joined game: ${game.id}`);
 
-        console.log('Player joined game. Current players:', game.players.length);
         return game;
     }
 
-    getGameById(id: string): Game | undefined {
-        return Array.from(this.games.values()).find(game => game.id === id);
+    playCard(passcode: string, playerId: string, card: Card): void {
+        const game = this.getGame(passcode);
+
+        if (!game) {
+            throw new Error('Game not found');
+        }
+
+        const player = game.players.find(p => p.id === playerId);
+
+        if (!player) {
+            throw new Error('Player not found in this game');
+        }
+
+        if (!game.topCard) {
+            throw new Error('Game has not started yet');
+        }
+
+        if (!Rules.isValidMove(card, game.topCard)) {
+            throw new Error('Invalid move');
+        }
+
+        const effect = Rules.handleSpecialCard(card, {
+            isReversed: game.isReversed,
+            drawPile: []
+        });
+
+        // Update game state based on effect
+        game.isReversed = effect.skipTurn ? game.isReversed : game.isReversed;
+        game.topCard = card;
+
+        console.log(`${player.username} played ${card.toString()}`);
     }
 
-    getGamePlayers(gameId: string): { id: string; username: string; isReady: boolean; connected: boolean }[] {
-        const game = this.getGameById(gameId);
-        if (!game) return [];
-        return game.players.map(player => ({
-            id: player.id,
-            username: player.username,
-            isReady: false, // TODO: Implement ready state
-            connected: player.connected !== false // true by default unless explicitly set to false
-        }));
+    drawCard(passcode: string, playerId: string): Card {
+        const game = this.getGame(passcode);
+
+        if (!game) {
+            throw new Error('Game not found');
+        }
+
+        const player = game.players.find(p => p.id === playerId);
+
+        if (!player) {
+            throw new Error('Player not found in this game');
+        }
+
+        const drawnCard = game.deck.drawCard();
+        if (!drawnCard) {
+            throw new Error('No cards left in the deck');
+        }
+
+        console.log(`${player.username} drew a card`);
+        return drawnCard;
     }
 
     removePlayerFromGame(gameId: string, playerId: string): boolean {
-        console.log('Removing player from game:', { gameId, playerId });
         const game = this.getGameById(gameId);
         if (!game) {
-            console.log('Game not found for removal');
             return false;
         }
 
         const initialLength = game.players.length;
         game.players = game.players.filter(p => p.id !== playerId);
-        console.log(`Players remaining: ${game.players.length}`);
 
-        // Only remove the game if it's been empty for a while or is finished
         if (game.players.length === 0 && game.status === 'finished') {
-            console.log('Removing empty finished game');
             this.games.delete(game.passcode);
             this.games.delete(game.id);
         } else {
-            // Update the game state in both locations
             this.games.set(game.passcode, game);
             this.games.set(game.id, game);
         }
@@ -167,7 +198,6 @@ class GamesService {
     }
 
     getAllGames(): Game[] {
-        // Get unique games by filtering out duplicates and only including games stored by passcode
         return Array.from(this.games.entries())
             .filter(([key, game]) => key === game.passcode)
             .map(([_, game]) => game);
@@ -180,6 +210,13 @@ class GamesService {
             return this.games.delete(passcode);
         }
         return false;
+    }
+    getGamePlayers(gameId: string): Player[] {
+        const game = this.getGameById(gameId);
+        if (!game) {
+            throw new Error(`Game with ID ${gameId} not found.`);
+        }
+        return game.players;
     }
 }
 

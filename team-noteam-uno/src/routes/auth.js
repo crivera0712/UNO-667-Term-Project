@@ -63,7 +63,7 @@ router.post('/login', async (req, res) => {
         }
 
         // Update last login time
-        await User.updateLastLogin(user.id);
+        const updatedUser = await User.updateLastLogin(user.id);
 
         // Set session
         req.session.userId = user.id;
@@ -71,10 +71,10 @@ router.post('/login', async (req, res) => {
         res.json({
             message: 'Login successful',
             user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                last_login: user.last_login
+                id: updatedUser.id,
+                username: updatedUser.username,
+                email: updatedUser.email,
+                last_login: updatedUser.last_login
             }
         });
     } catch (error) {
@@ -108,7 +108,8 @@ router.get('/me', async (req, res) => {
             user: {
                 id: user.id,
                 username: user.username,
-                email: user.email
+                email: user.email,
+                last_login: user.last_login
             }
         });
     } catch (error) {

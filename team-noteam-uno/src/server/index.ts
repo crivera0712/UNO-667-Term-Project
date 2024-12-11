@@ -64,11 +64,12 @@ app.use(
         resave: false,
         saveUninitialized: false,
         cookie: {
-            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+            maxAge: 30 * 24 * 60 * 60 * 1000,
             secure: process.env.NODE_ENV === "production"
         }
-    }));
-app.use(flash()); // Flash messages support
+    })
+);
+app.use(flash());
 
 /**
  * Authentication Middleware
@@ -101,13 +102,13 @@ app.use((_req: Request, _res: Response, next: NextFunction) => {
     next(createError(404));
 });
 
+
 /**
  * Global Error Handler
  * Processes all errors and renders the error page
  * In development mode, includes full error details
  */
 app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
-    // Only send error response if headers haven't been sent
     if (!res.headersSent) {
         res.locals.message = err.message;
         res.locals.error = req.app.get("env") === "development" ? err : {};
@@ -123,7 +124,7 @@ app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
 const PORT = process.env.PORT || 3000;
 
 const findAvailablePort = async (startPort: number): Promise<number> => {
-    const maxPort = startPort + 10; // Try up to 10 ports
+    const maxPort = startPort + 10;
     for (let port = startPort; port <= maxPort; port++) {
         try {
             await new Promise((resolve, reject) => {
@@ -165,7 +166,6 @@ const startServer = async (): Promise<void> => {
             saveUninitialized: false
         })));
 
-        // Middleware to set socket data from session and check authentication
         io.use((socket: Socket, next: Function) => {
             const session = (socket.request as any).session;
             if (session && session.user) {
@@ -205,22 +205,33 @@ const startServer = async (): Promise<void> => {
                         socket: socket,
                         connected: true
                     };
-                    console.log('Player data:', { ...player, socket: undefined });
+                    console.log('Player data:', player);
 
                     const game = gamesService.createGame(data.passcode, player);
-                    console.log('Game created:', { ...game, players: game.players.map(p => ({ ...p, socket: undefined })) });
+                    console.log('Game created:', {
+                        id: game.id,
+                        passcode: game.passcode,
+                        players: game.players.map(p => ({ id: p.id, username: p.username, connected: p.connected })),
+                        status: game.status,
+                        topCard: game.topCard,
+                        isReversed: game.isReversed
+                    });
 
                     socket.join(`game:${game.id}`);
 
-                    // Emit initial player list to the creator
-                    const initialPlayers = gamesService.getGamePlayers(game.id);
-                    io.to(`game:${game.id}`).emit('player_joined', {
-                        playerId: player.id,
-                        username: player.username,
-                        players: initialPlayers
-                    });
+                    socket.emit('game_created', JSON.parse(JSON.stringify({
+                        id: game.id,
+                        passcode: game.passcode,
+                        players: game.players.map(player => ({
+                            id: player.id,
+                            username: player.username,
+                            connected: player.connected
+                        })),
+                        status: game.status,
+                        topCard: game.topCard ? { color: game.topCard.color, value: game.topCard.value } : null,
+                        isReversed: game.isReversed
+                    })));
 
-                    // Update all clients with new game list
                     io.emit('games_update', gamesService.getAllGames().map(g => ({
                         id: g.id,
                         passcode: g.passcode,
@@ -235,10 +246,9 @@ const startServer = async (): Promise<void> => {
                 }
             });
 
-            // Handle game joining
             socket.on('join_game', async (data: { passcode: string }, callback: (response: any) => void) => {
                 try {
-                    console.log('Attempting to join game with passcode:', data.passcode);
+                    console.log('Joining game with passcode:', data.passcode);
                     const player = {
                         id: socket.id,
                         userId: socket.data.userId,
@@ -246,36 +256,30 @@ const startServer = async (): Promise<void> => {
                         socket: socket,
                         connected: true
                     };
-                    console.log('Player attempting to join:', { ...player, socket: undefined });
+                    console.log('Player data:', player);
 
                     const game = gamesService.joinGame(data.passcode, player);
-                    console.log('Successfully joined game:', {
-                        gameId: game.id,
+                    console.log('Player joined game:', {
+                        id: game.id,
                         passcode: game.passcode,
-                        playerCount: game.players.length
+                        players: game.players.map(p => ({ id: p.id, username: p.username, connected: p.connected })),
+                        status: game.status
                     });
 
                     socket.join(`game:${game.id}`);
 
-                    // Get updated player list with connection status
-                    const updatedPlayers = gamesService.getGamePlayers(game.id);
-                    console.log('Sending updated player list:', updatedPlayers);
-
-                    // Emit to all clients in the game room
                     io.to(`game:${game.id}`).emit('player_joined', {
                         playerId: player.id,
                         username: player.username,
-                        players: updatedPlayers
+                        players: game.players.map(p => ({ id: p.id, username: p.username, connected: p.connected }))
                     });
 
-                    // Update all clients with new game list
-                    const gamesList = gamesService.getAllGames().map(g => ({
+                    io.emit('games_update', gamesService.getAllGames().map(g => ({
                         id: g.id,
                         passcode: g.passcode,
                         status: g.status,
                         players: g.players.map(p => ({ id: p.id, username: p.username, connected: p.connected }))
-                    }));
-                    io.emit('games_update', gamesList);
+                    })));
 
                     callback({ success: true, gameId: game.id });
                 } catch (error: any) {
