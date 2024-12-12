@@ -8,7 +8,7 @@ class User {
             const query = `
                 INSERT INTO users (username, email, password_hash, last_login)
                 VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
-                RETURNING id, username, email, created_at, last_login;
+                    RETURNING id, username, email, created_at, last_login;
             `;
             const result = await db.query(query, [username, email, hashedPassword]);
             return result.rows[0];
@@ -50,10 +50,10 @@ class User {
     static async updateLastLogin(id) {
         try {
             const query = `
-                UPDATE users 
-                SET last_login = CURRENT_TIMESTAMP 
-                WHERE id = $1 
-                RETURNING id, username, email, last_login;
+                UPDATE users
+                SET last_login = CURRENT_TIMESTAMP
+                WHERE id = $1
+                    RETURNING id, username, email, last_login;
             `;
             const result = await db.query(query, [id]);
             return result.rows[0];

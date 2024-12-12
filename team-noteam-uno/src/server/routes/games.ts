@@ -47,15 +47,43 @@ router.get("/waiting/:gameId", (request: AuthenticatedRequest, response) => {
 
 // Add new route for the game view
 router.get("/play/:gameId", (request: AuthenticatedRequest, response) => {
+    console.log('Accessing game with gameId:', request.params.gameId);
     const game = gamesService.getGameById(request.params.gameId);
 
     if (!game) {
+        console.log('Game not found, redirecting to lobby');
+        return response.redirect('/games');
+    }
+
+    console.log('Game state:', {
+        id: game.id,
+        status: game.status,
+        players: game.players.map(p => ({
+            id: p.id,
+            userId: p.userId,
+            username: p.username,
+            connected: p.connected,
+            handSize: p.hand.length
+        }))
+    });
+
+    // Check if the user is part of the game
+    const player = game.players.find(p => p.userId === request.session.userId);
+    if (!player) {
+        console.log('Player not in game, redirecting to lobby. User ID:', request.session.userId);
         return response.redirect('/games');
     }
 
     if (game.status !== 'playing') {
+        console.log('Game not started, redirecting to waiting room');
         return response.redirect(`/games/waiting/${game.id}`);
     }
+
+    console.log('Rendering game view for player:', {
+        userId: request.session.userId,
+        username: player.username,
+        handSize: player.hand.length
+    });
 
     response.render("game", {
         title: "UNO Game",
