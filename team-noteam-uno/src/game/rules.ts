@@ -19,13 +19,22 @@ export class Rules {
     static getNextPlayerIndex(
         currentPlayerIndex: number,
         numPlayers: number,
-        isReversed: boolean
+        isReversed: boolean,
+        skipTurn: boolean = false
     ): number {
+        let nextIndex;
         if (isReversed) {
-            return (currentPlayerIndex - 1 + numPlayers) % numPlayers;
+            nextIndex = (currentPlayerIndex - 1 + numPlayers) % numPlayers;
         } else {
-            return (currentPlayerIndex + 1) % numPlayers;
+            nextIndex = (currentPlayerIndex + 1) % numPlayers;
         }
+        // If it's a skip card, skip one more player
+        if (skipTurn) {
+            return isReversed ?
+                (nextIndex - 1 + numPlayers) % numPlayers :
+                (nextIndex + 1) % numPlayers;
+        }
+        return nextIndex;
     }
 
     // Handle special card effects (e.g., Skip, Reverse, Draw Two, Wild Draw Four)

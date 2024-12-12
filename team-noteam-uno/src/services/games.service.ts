@@ -3,7 +3,7 @@ import { Deck } from '../game/deck';
 import { Card } from '../game/card';
 import { Rules } from '../game/rules';
 
-interface Game {
+export interface Game {
     id: string;
     passcode: string;
     players: Player[];
@@ -15,7 +15,7 @@ interface Game {
     currentPlayerIndex: number; // Add this to track whose turn it is
 }
 
-interface Player {
+export interface Player {
     id: string;
     userId?: number;
     username: string;
@@ -147,7 +147,7 @@ class GamesService {
 
         return game;
     }
-    playCard(gameId: string, playerId: string, cardIndex: number): { success: boolean; error?: string } {
+    playCard(gameId: string, playerId: string, cardIndex: number): { success: boolean; error?: string; game?: Game } {
         const game = this.getGameById(gameId);
         if (!game) {
             return { success: false, error: 'Game not found' };
@@ -163,43 +163,56 @@ class GamesService {
             return { success: false, error: 'Not your turn' };
         }
 
-        const card = player.hand[cardIndex];
-        if (!card) {
+        if (cardIndex < 0 || cardIndex >= player.hand.length) {
+            return { success: false, error: 'Invalid card index' };
+        }
+
+        const cardToPlay = player.hand[cardIndex];
+        if (!cardToPlay) {
             return { success: false, error: 'Invalid card' };
         }
 
-        if (!game.topCard || !Rules.isValidMove(card, game.topCard)) {
+        if (!game.topCard || !Rules.isValidMove(cardToPlay, game.topCard)) {
             return { success: false, error: 'Invalid move' };
         }
 
         // Remove the card from player's hand
-        player.hand.splice(cardIndex, 1);
+        const updatedHand = [...player.hand];
+        updatedHand.splice(cardIndex, 1);
+        player.hand = updatedHand;
 
-        // Place card on top
-        game.topCard = card;
+        // Place card on top and add to discard pile
+        if (game.topCard) {
+            game.deck.addToDiscardPile(game.topCard);
+        }
+        game.topCard = cardToPlay;
 
         // Handle special card effects
-        const effect = Rules.handleSpecialCard(card, {
+        const effect = Rules.handleSpecialCard(cardToPlay, {
             isReversed: game.isReversed,
             drawPile: []
         });
 
         // Update game state
-        if (card.type === 'Reverse') {
+        if (cardToPlay.type === 'Reverse') {
             game.isReversed = !game.isReversed;
         }
 
-        // Move to next player
+        // Move to next player, considering skip cards
         game.currentPlayerIndex = Rules.getNextPlayerIndex(
             game.currentPlayerIndex,
             game.players.length,
-            game.isReversed
+            game.isReversed,
+            effect.skipTurn
         );
+        // Update the game state in both maps
+        this.games.set(game.passcode, game);
+        this.games.set(game.id, game);
 
-        return { success: true };
+        // Return the updated game state along with success
+        return { success: true, game };
     }
-
-    drawCard(gameId: string, playerId: string): { success: boolean; card?: Card; error?: string } {
+    drawCard(gameId: string, playerId: string): { success: boolean; card?: Card; error?: string; game?: Game } {
         const game = this.getGameById(gameId);
         if (!game) {
             return { success: false, error: 'Game not found' };
@@ -214,13 +227,13 @@ class GamesService {
             return { success: false, error: 'Not your turn' };
         }
 
-        const card = game.deck.drawCard();
-        if (!card) {
+        const drawnCard = game.deck.drawCard();
+        if (!drawnCard) {
             return { success: false, error: 'No cards left in deck' };
         }
 
         // Add card to player's hand
-        game.players[playerIndex].hand.push(card);
+        game.players[playerIndex].hand = [...game.players[playerIndex].hand, drawnCard];
 
         // Move to next player
         game.currentPlayerIndex = Rules.getNextPlayerIndex(
@@ -229,7 +242,11 @@ class GamesService {
             game.isReversed
         );
 
-        return { success: true, card };
+        // Update both maps with the new game state
+        this.games.set(game.passcode, game);
+        this.games.set(game.id, game);
+
+        return { success: true, card: drawnCard, game };
     }
 
     removePlayerFromGame(gameId: string, playerId: string): boolean {
@@ -244,7 +261,9 @@ class GamesService {
             const player = game.players.find(p => p.id === playerId || p.userId?.toString() === playerId);
             if (player) {
                 player.connected = false;
-                this.updateGame(game);
+                // Update both maps
+                this.games.set(game.passcode, game);
+                this.games.set(game.id, game);
                 return true;
             }
             return false;
@@ -291,15 +310,6 @@ class GamesService {
         return Array.from(uniqueGames);
     }
 
-    removeGame(passcode: string): boolean {
-        const game = this.games.get(passcode);
-        if (game) {
-            this.games.delete(game.id);
-            return this.games.delete(passcode);
-        }
-        return false;
-    }
-
     getGamePlayers(gameId: string): Player[] {
         const game = this.getGameById(gameId);
         if (!game) {
@@ -313,7 +323,7 @@ class GamesService {
             // Create a deep copy while preserving socket references and connection status
             const gameCopy = {
                 ...game,
-                players: game.players.map(player => ({
+                players: game.players.map((player: Player) => ({
                     ...player,
                     socket: player.socket,  // Maintain socket reference
                     connected: player.connected,  // Maintain connection status
@@ -331,7 +341,7 @@ class GamesService {
                 id: game.id,
                 passcode: game.passcode,
                 status: game.status,
-                players: game.players.map(p => ({
+                players: game.players.map((p: Player) => ({
                     id: p.id,
                     username: p.username,
                     connected: p.connected,
