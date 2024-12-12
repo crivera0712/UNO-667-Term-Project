@@ -1,6 +1,6 @@
 import { Socket } from 'socket.io';
 import { Deck } from '../game/deck';
-import { Card } from '../game/card';
+import { Card, CardColor } from '../game/card';
 import { Rules } from '../game/rules';
 
 export interface Game {
@@ -10,9 +10,11 @@ export interface Game {
     status: 'waiting' | 'playing' | 'finished';
     createdAt: Date;
     deck: Deck;
-    topCard: Card | null; // Card currently on the discard pile
-    isReversed: boolean;  // Tracks the play direction
-    currentPlayerIndex: number; // Add this to track whose turn it is
+    topCard: Card | null;
+    isReversed: boolean;
+    currentPlayerIndex: number;
+    accumulatedDrawCards: number;
+    mustPlayDrawCard: boolean;
 }
 
 export interface Player {
@@ -38,21 +40,16 @@ class GamesService {
     }
 
     createGame(passcode: string, creator: Player): Game {
-        console.log(`Attempting to create game with passcode: ${passcode}`);
-        // Validate passcode format (4 digits)
         if (!/^\d{4}$/.test(passcode)) {
             throw new Error('Passcode must be exactly 4 digits');
         }
 
-        // Check if game with passcode already exists
         if (this.games.has(passcode)) {
             throw new Error('A game with this passcode already exists');
         }
 
         const deck = new Deck();
         const firstCard = deck.drawCard();
-
-        // Deal 7 cards to the creator
         const creatorHand = deck.drawCards(7);
 
         const game: Game = {
@@ -62,26 +59,25 @@ class GamesService {
                 ...creator,
                 id: creator.userId?.toString() || creator.id,
                 connected: true,
-                hand: creatorHand  // Add the drawn cards to creator's hand
+                hand: creatorHand
             }],
             status: 'waiting',
             createdAt: new Date(),
             deck,
             topCard: firstCard,
             isReversed: false,
-            currentPlayerIndex: 0
+            currentPlayerIndex: 0,
+            accumulatedDrawCards: 0,
+            mustPlayDrawCard: false
         };
-        // Store the game using both passcode and ID
+
         this.games.set(passcode, game);
         this.games.set(game.id, game);
-
-        console.log('Game successfully created');
 
         return game;
     }
 
     getGame(identifier: string): Game | undefined {
-        console.log(`Fetching game with identifier: ${identifier}`);
         const game = this.games.get(identifier);
         if (game) return game;
 
@@ -90,49 +86,26 @@ class GamesService {
                 return existingGame;
             }
         }
-        return undefined; // No matching game found
-    }
-
-    getGameById(id: string): Game | undefined {
-        const game = this.games.get(id);
-        if (game) return game;
-
-        // If not found by direct lookup, try finding in all games
-        for (const [_, existingGame] of this.games) {
-            if (existingGame.id === id) {
-                return existingGame;
-            }
-        }
         return undefined;
     }
 
+    getGameById(id: string): Game | undefined {
+        return this.getGame(id);
+    }
+
     joinGame(passcode: string, player: Player): Game {
-        console.log(`Player attempting to join game with passcode: ${passcode}`);
         const game = this.getGame(passcode);
-
-        if (!game) {
-            throw new Error('Game not found');
-        }
-
-        if (game.status !== 'waiting') {
-            throw new Error('Game has already started');
-        }
-
-        if (game.players.length >= 10) {
-            throw new Error('Game is full');
-        }
+        if (!game) throw new Error('Game not found');
+        if (game.status !== 'waiting') throw new Error('Game has already started');
+        if (game.players.length >= 10) throw new Error('Game is full');
 
         const existingPlayerIndex = game.players.findIndex(p => p.userId === player.userId);
         if (existingPlayerIndex !== -1) {
-            // Update existing player's connection but keep their hand
             const existingPlayer = game.players[existingPlayerIndex];
             existingPlayer.socket = player.socket;
             existingPlayer.connected = true;
-            console.log('Reconnecting existing player with hand:', existingPlayer.hand);
         } else {
-            // Deal 7 cards to the new player
             const playerHand = game.deck.drawCards(7);
-            console.log('Dealing new hand to player:', playerHand);
             game.players.push({
                 ...player,
                 id: player.userId?.toString() || player.id,
@@ -141,51 +114,72 @@ class GamesService {
             });
         }
 
-        // Update the game in both maps
         this.games.set(passcode, game);
         this.games.set(game.id, game);
-
         return game;
     }
-    playCard(gameId: string, playerId: string, cardIndex: number): { success: boolean; error?: string; game?: Game } {
+
+    playCard(gameId: string, playerId: string, cardIndex: number, selectedColor?: string): { success: boolean; error?: string; game?: Game } {
+        console.log('Attempting to play card:', { gameId, playerId, cardIndex, selectedColor });
+
         const game = this.getGameById(gameId);
         if (!game) {
+            console.log('Game not found');
             return { success: false, error: 'Game not found' };
         }
 
-        const playerIndex = game.players.findIndex(p => p.id === playerId || p.userId?.toString() === playerId);
+        // Find player's index in the game
+        const playerIndex = game.players.findIndex(p => p.userId?.toString() === playerId);
+        console.log('Player index:', playerIndex, 'Current player index:', game.currentPlayerIndex);
+
         if (playerIndex === -1) {
+            console.log('Player not found');
             return { success: false, error: 'Player not found' };
         }
-
-        const player = game.players[playerIndex];
         if (playerIndex !== game.currentPlayerIndex) {
+            console.log('Not player\'s turn');
             return { success: false, error: 'Not your turn' };
         }
 
+        const player = game.players[playerIndex];
         if (cardIndex < 0 || cardIndex >= player.hand.length) {
+            console.log('Invalid card index');
             return { success: false, error: 'Invalid card index' };
         }
 
         const cardToPlay = player.hand[cardIndex];
-        if (!cardToPlay) {
-            return { success: false, error: 'Invalid card' };
+        console.log('Card to play:', cardToPlay);
+        console.log('Top card:', game.topCard);
+
+        // For wild cards, we need a color selection
+        if ((cardToPlay.type === 'Wild' || cardToPlay.type === 'Wild Draw Four') && !selectedColor) {
+            console.log('Wild card played without color selection');
+            return { success: false, error: 'Must select a color for wild card' };
         }
 
-        if (!game.topCard || !Rules.isValidMove(cardToPlay, game.topCard)) {
-            return { success: false, error: 'Invalid move' };
+        // Check if the move is valid
+        if (game.topCard && !Rules.isValidMove(cardToPlay, game.topCard)) {
+            console.log('Invalid move - card doesn\'t match top card');
+            return { success: false, error: 'Invalid move - card must match color or value' };
         }
 
-        // Remove the card from player's hand
-        const updatedHand = [...player.hand];
-        updatedHand.splice(cardIndex, 1);
-        player.hand = updatedHand;
+        // Remove card from player's hand
+        player.hand.splice(cardIndex, 1);
+        console.log('Card removed from hand');
 
-        // Place card on top and add to discard pile
+        // Add current top card to discard pile if it exists
         if (game.topCard) {
             game.deck.addToDiscardPile(game.topCard);
+            console.log('Previous top card added to discard pile');
         }
-        game.topCard = cardToPlay;
+
+        // Set the new top card, handling wild cards specially
+        if (cardToPlay.type === 'Wild' || cardToPlay.type === 'Wild Draw Four') {
+            console.log('Setting new top card with selected color:', selectedColor);
+            game.topCard = new Card(selectedColor as CardColor, cardToPlay.value, cardToPlay.type);
+        } else {
+            game.topCard = cardToPlay;
+        }
 
         // Handle special card effects
         const effect = Rules.handleSpecialCard(cardToPlay, {
@@ -193,47 +187,88 @@ class GamesService {
             drawPile: []
         });
 
-        // Update game state
+        // Update game state based on card type
         if (cardToPlay.type === 'Reverse') {
             game.isReversed = !game.isReversed;
         }
 
-        // Move to next player, considering skip cards
+        // Handle draw card stacking (only for Draw Two cards)
+        if (cardToPlay.type === 'Draw Two') {
+            game.accumulatedDrawCards += effect.drawCards;
+            game.mustPlayDrawCard = true;
+
+            // Check if next player has a +2 card
+            const nextPlayerIndex = Rules.getNextPlayerIndex(
+                game.currentPlayerIndex,
+                game.players.length,
+                game.isReversed
+            );
+            const nextPlayer = game.players[nextPlayerIndex];
+            const hasDrawTwo = nextPlayer.hand.some(card => card.type === 'Draw Two');
+
+            // If next player doesn't have a +2, they draw cards immediately
+            if (!hasDrawTwo) {
+                const drawnCards = game.deck.drawCards(game.accumulatedDrawCards);
+                nextPlayer.hand.push(...drawnCards);
+                game.accumulatedDrawCards = 0;
+                game.mustPlayDrawCard = false;
+            }
+        } else if (cardToPlay.type === 'Wild Draw Four') {
+            game.accumulatedDrawCards = 4;  // No stacking for +4
+            game.mustPlayDrawCard = false;  // Next player must draw immediately
+
+            // Next player draws 4 cards immediately
+            const nextPlayerIndex = Rules.getNextPlayerIndex(
+                game.currentPlayerIndex,
+                game.players.length,
+                game.isReversed
+            );
+            const nextPlayer = game.players[nextPlayerIndex];
+            const drawnCards = game.deck.drawCards(4);
+            nextPlayer.hand.push(...drawnCards);
+            game.accumulatedDrawCards = 0;
+        } else {
+            game.accumulatedDrawCards = 0;
+            game.mustPlayDrawCard = false;
+        }
+
+        // Update current player index
         game.currentPlayerIndex = Rules.getNextPlayerIndex(
             game.currentPlayerIndex,
             game.players.length,
             game.isReversed,
             effect.skipTurn
         );
-        // Update the game state in both maps
+
+        // Update game state in storage
         this.games.set(game.passcode, game);
         this.games.set(game.id, game);
-
-        // Return the updated game state along with success
         return { success: true, game };
     }
-    drawCard(gameId: string, playerId: string): { success: boolean; card?: Card; error?: string; game?: Game } {
+    drawCard(gameId: string, playerId: string): { success: boolean; error?: string; game?: Game; card?: Card } {
         const game = this.getGameById(gameId);
-        if (!game) {
-            return { success: false, error: 'Game not found' };
-        }
+        if (!game) return { success: false, error: 'Game not found' };
 
         const playerIndex = game.players.findIndex(p => p.id === playerId || p.userId?.toString() === playerId);
-        if (playerIndex === -1) {
-            return { success: false, error: 'Player not found' };
-        }
+        if (playerIndex === -1) return { success: false, error: 'Player not found' };
+        if (playerIndex !== game.currentPlayerIndex) return { success: false, error: 'Not your turn' };
 
-        if (playerIndex !== game.currentPlayerIndex) {
-            return { success: false, error: 'Not your turn' };
-        }
+        let drawnCard: Card | null = null;
 
-        const drawnCard = game.deck.drawCard();
-        if (!drawnCard) {
-            return { success: false, error: 'No cards left in deck' };
-        }
+        // Handle accumulated draw cards
+        if (game.accumulatedDrawCards > 0) {
+            const drawnCards = game.deck.drawCards(game.accumulatedDrawCards);
+            game.players[playerIndex].hand.push(...drawnCards);
+            drawnCard = drawnCards[0]; // Return the first card for display purposes
 
-        // Add card to player's hand
-        game.players[playerIndex].hand = [...game.players[playerIndex].hand, drawnCard];
+            game.accumulatedDrawCards = 0;
+            game.mustPlayDrawCard = false;
+        } else {
+            // Normal draw
+            drawnCard = game.deck.drawCard();
+            if (!drawnCard) return { success: false, error: 'No cards left in deck' };
+            game.players[playerIndex].hand.push(drawnCard);
+        }
 
         // Move to next player
         game.currentPlayerIndex = Rules.getNextPlayerIndex(
@@ -242,26 +277,20 @@ class GamesService {
             game.isReversed
         );
 
-        // Update both maps with the new game state
         this.games.set(game.passcode, game);
         this.games.set(game.id, game);
 
-        return { success: true, card: drawnCard, game };
+        return { success: true, game, card: drawnCard };
     }
 
     removePlayerFromGame(gameId: string, playerId: string): boolean {
         const game = this.getGameById(gameId);
-        if (!game) {
-            return false;
-        }
+        if (!game) return false;
 
-        // Don't remove players if game is playing
         if (game.status === 'playing') {
-            console.log('Game is playing, marking player as disconnected instead of removing');
             const player = game.players.find(p => p.id === playerId || p.userId?.toString() === playerId);
             if (player) {
                 player.connected = false;
-                // Update both maps
                 this.games.set(game.passcode, game);
                 this.games.set(game.id, game);
                 return true;
@@ -270,84 +299,35 @@ class GamesService {
         }
 
         const initialLength = game.players.length;
-        const playerToRemove = game.players.find(p => p.id === playerId || p.userId?.toString() === playerId);
+        game.players = game.players.filter(p => p.id !== playerId && p.userId?.toString() !== playerId);
 
-        if (!playerToRemove) {
-            return false;
-        }
-
-        // Create updated game state with the player removed
-        const updatedGame = {
-            ...game,
-            players: game.players.filter(p => p !== playerToRemove)
-        };
-
-        // If game is empty or finished, remove it
-        if (updatedGame.players.length === 0 || game.status === 'finished') {
+        if (game.players.length === 0 || game.status === 'finished') {
             this.games.delete(game.passcode);
             this.games.delete(game.id);
         } else {
-            // Update game state while preserving socket references
-            updatedGame.players = updatedGame.players.map(player => ({
-                ...player,
-                socket: player.socket,  // Maintain socket reference
-                hand: [...player.hand]  // Create new array for hand
-            }));
-
-            this.games.set(game.passcode, updatedGame);
-            this.games.set(game.id, updatedGame);
+            this.games.set(game.passcode, game);
+            this.games.set(game.id, game);
         }
 
-        return updatedGame.players.length < initialLength;
+        return game.players.length < initialLength;
     }
 
     getAllGames(): Game[] {
-        // Get unique games by filtering out duplicate entries (where key === game.id)
         const uniqueGames = new Set<Game>();
-        this.games.forEach((game) => {
-            uniqueGames.add(game);
-        });
+        this.games.forEach(game => uniqueGames.add(game));
         return Array.from(uniqueGames);
     }
 
     getGamePlayers(gameId: string): Player[] {
         const game = this.getGameById(gameId);
-        if (!game) {
-            throw new Error(`Game with ID ${gameId} not found.`);
-        }
+        if (!game) throw new Error(`Game with ID ${gameId} not found.`);
         return game.players;
     }
 
     updateGame(game: Game): void {
         if (game) {
-            // Create a deep copy while preserving socket references and connection status
-            const gameCopy = {
-                ...game,
-                players: game.players.map((player: Player) => ({
-                    ...player,
-                    socket: player.socket,  // Maintain socket reference
-                    connected: player.connected,  // Maintain connection status
-                    hand: [...player.hand]  // Create new array for hand
-                })),
-                deck: game.deck,  // Deck is already a separate instance
-                topCard: game.topCard  // Card is immutable
-            };
-
-            // Update both entries in the map
-            this.games.set(game.passcode, gameCopy);
-            this.games.set(game.id, gameCopy);
-
-            console.log('Game updated:', {
-                id: game.id,
-                passcode: game.passcode,
-                status: game.status,
-                players: game.players.map((p: Player) => ({
-                    id: p.id,
-                    username: p.username,
-                    connected: p.connected,
-                    handSize: p.hand.length
-                }))
-            });
+            this.games.set(game.passcode, game);
+            this.games.set(game.id, game);
         }
     }
 }

@@ -136,17 +136,54 @@
             document.getElementById('gameId').textContent = gameId;
         }
         // Card playing functionality
-        // Card playing functionality
         function onCardClick(cardIndex) {
-            socket.emit('play_card', { gameId, cardIndex }, (response) => {
-                if (!response.success) {
-                    console.error('Failed to play card:', response.error);
-                    alert(response.error); // Show error to user
+            // Check if it's the player's turn
+            const playerHandContainer = document.getElementById('playerHand');
+            if (!playerHandContainer.classList.contains('border-green-500')) {
+                console.log('Not your turn');
+                return; // Not player's turn
+            }
+
+            const hand = document.getElementById('playerHand');
+            const cardElement = hand.children[cardIndex];
+            if (!cardElement || !cardElement.__card) {
+                console.error('Card data not found');
+                return;
+            }
+
+            const card = cardElement.__card;
+            console.log('Attempting to play card:', card);
+
+            if (card.type === 'Wild' || card.type === 'Wild Draw Four') {
+                // Show color selection dialog
+                const color = prompt('Select a color (Red, Blue, Green, or Yellow):');
+                if (!color) return; // User cancelled
+
+                const validColor = color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
+                if (!['Red', 'Blue', 'Green', 'Yellow'].includes(validColor)) {
+                    alert('Invalid color selection');
+                    return;
                 }
-            });
+
+                console.log('Playing wild card with color:', validColor);
+                socket.emit('play_card', { gameId, cardIndex, selectedColor: validColor }, (response) => {
+                    if (!response.success) {
+                        console.error('Failed to play card:', response.error);
+                        alert(response.error);
+                    }
+                });
+            } else {
+                console.log('Playing regular card');
+                socket.emit('play_card', { gameId, cardIndex }, (response) => {
+                    if (!response.success) {
+                        console.error('Failed to play card:', response.error);
+                        alert(response.error);
+                    }
+                });
+            }
         }
 
-        // Handle drawing a card
+        // Add draw pile click handler
         document.querySelector('.draw-pile').addEventListener('click', () => {
             socket.emit('draw_card', { gameId }, (response) => {
                 if (response.success && response.card) {
@@ -157,7 +194,6 @@
                 }
             });
         });
-
         function createCard(card, index) {
             console.log('Creating card element for:', card);
             if (!card || !card.color || !colorMap[card.color]) {
@@ -168,6 +204,7 @@
             cardElement.className = `w-24 h-36 ${colorMap[card.color]} rounded-xl border-4 border-white/20 shadow-xl flex items-center justify-center transform hover:scale-110 transition-transform cursor-pointer`;
             cardElement.innerHTML = `<span class="text-3xl font-bold text-white">${card.value}</span>`;
             cardElement.addEventListener('click', () => onCardClick(index));
+            cardElement.__card = card; // Store the card data on the element
             return cardElement;
         }
         // Initialize player's hand - we'll get this from the server
@@ -398,9 +435,14 @@
                 }
 
                 // Update turn indicator and enable/disable controls based on turn
-                if (data.currentPlayerIndex !== undefined && data.opponents) {
-                    const myPosition = data.opponents.length; // I'm after all opponents
-                    const isMyTurn = data.currentPlayerIndex === myPosition;
+                if (data.currentPlayerIndex !== undefined) {
+                    console.log('Current player index:', data.currentPlayerIndex);
+                    console.log('Number of opponents:', data.opponents.length);
+
+                    // Find my position in the game by checking if it's my turn
+                    const isMyTurn = data.currentPlayerIndex === data.myPosition;
+                    console.log('My position:', data.myPosition);
+                    console.log('Is my turn?', isMyTurn);
                     updateTurnIndicator(data.currentPlayerIndex, isMyTurn);
 
                     // Enable/disable controls based on turn
@@ -408,6 +450,7 @@
                     const cards = playerHand.querySelectorAll('div');
 
                     if (isMyTurn) {
+                        console.log('Enabling controls - my turn');
                         drawPile.classList.remove('opacity-50', 'cursor-not-allowed');
                         drawPile.classList.add('cursor-pointer');
                         cards.forEach(card => {
@@ -415,6 +458,7 @@
                             card.classList.add('cursor-pointer');
                         });
                     } else {
+                        console.log('Disabling controls - not my turn');
                         drawPile.classList.add('opacity-50', 'cursor-not-allowed');
                         drawPile.classList.remove('cursor-pointer');
                         cards.forEach(card => {
@@ -436,33 +480,6 @@
                     console.error('Failed to refresh game state');
                 }
             });
-
-            // Update turn indicator
-            if (data.currentPlayerIndex !== undefined) {
-                const myPosition = data.opponents; // I'm after all opponents
-                const isMyTurn = data.currentPlayerIndex === myPosition;
-                updateTurnIndicator(data.currentPlayerIndex, isMyTurn);
-
-                // Update controls based on turn
-                const drawPile = document.querySelector('.draw-pile');
-                const cards = playerHand.querySelectorAll('div');
-
-                if (isMyTurn) {
-                    drawPile.classList.remove('opacity-50', 'cursor-not-allowed');
-                    drawPile.classList.add('cursor-pointer');
-                    cards.forEach(card => {
-                        card.classList.remove('opacity-50', 'cursor-not-allowed');
-                        card.classList.add('cursor-pointer');
-                    });
-                } else {
-                    drawPile.classList.add('opacity-50', 'cursor-not-allowed');
-                    drawPile.classList.remove('cursor-pointer');
-                    cards.forEach(card => {
-                        card.classList.add('opacity-50', 'cursor-not-allowed');
-                        card.classList.remove('cursor-pointer');
-                    });
-                }
-            }
         });
 
         // Listen for card drawn events
@@ -475,33 +492,6 @@
                     console.error('Failed to refresh game state');
                 }
             });
-
-            // Update turn indicator
-            if (data.currentPlayerIndex !== undefined) {
-                const myPosition = data.opponents; // I'm after all opponents
-                const isMyTurn = data.currentPlayerIndex === myPosition;
-                updateTurnIndicator(data.currentPlayerIndex, isMyTurn);
-
-                // Update controls based on turn
-                const drawPile = document.querySelector('.draw-pile');
-                const cards = playerHand.querySelectorAll('div');
-
-                if (isMyTurn) {
-                    drawPile.classList.remove('opacity-50', 'cursor-not-allowed');
-                    drawPile.classList.add('cursor-pointer');
-                    cards.forEach(card => {
-                        card.classList.remove('opacity-50', 'cursor-not-allowed');
-                        card.classList.add('cursor-pointer');
-                    });
-                } else {
-                    drawPile.classList.add('opacity-50', 'cursor-not-allowed');
-                    drawPile.classList.remove('cursor-pointer');
-                    cards.forEach(card => {
-                        card.classList.add('opacity-50', 'cursor-not-allowed');
-                        card.classList.remove('cursor-pointer');
-                    });
-                }
-            }
         });
     </script>
 </body>

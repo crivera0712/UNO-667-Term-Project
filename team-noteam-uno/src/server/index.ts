@@ -204,10 +204,12 @@ const startServer = async (): Promise<void> => {
 
                     if (player) {
                         // Send the player their hand and the current game state
+                        const playerPosition = game.players.findIndex(p => p.userId === socket.data.userId);
                         const gameState = {
                             hand: player.hand,
                             topCard: game.topCard,
                             currentPlayerIndex: game.currentPlayerIndex,
+                            myPosition: playerPosition,
                             opponents: game.players
                                 .filter(p => p.userId !== socket.data.userId)
                                 .map(p => ({
@@ -433,13 +435,14 @@ const startServer = async (): Promise<void> => {
             });
 
             // Handle playing a card
-            // Handle playing a card
-            socket.on('play_card', (data: { gameId: string, cardIndex: number }, callback: (response: any) => void) => {
+            socket.on('play_card', (data: { gameId: string, cardIndex: number, selectedColor?: string }, callback: (response: any) => void) => {
                 try {
-                    const result = gamesService.playCard(data.gameId, socket.data.userId.toString(), data.cardIndex);
-                    const game = result.game;
+                    console.log('Play card request:', { gameId: data.gameId, userId: socket.data.userId, cardIndex: data.cardIndex, selectedColor: data.selectedColor });
 
-                    if (result.success && game) {
+                    const result = gamesService.playCard(data.gameId, socket.data.userId.toString(), data.cardIndex, data.selectedColor);
+
+                    if (result.success && result.game) {
+                        const game = result.game;
                         // Notify all players about the card being played
                         io.to(`game:${data.gameId}`).emit('card_played', {
                             playerId: socket.data.userId,
@@ -453,13 +456,15 @@ const startServer = async (): Promise<void> => {
                         game.players.forEach(p => {
                             const playerSocket = p.socket;
                             if (playerSocket) {
+                                const playerPosition = game.players.findIndex(player => player.userId === p.userId);
                                 playerSocket.emit('game_state', {
                                     hand: p.hand,
                                     topCard: game.topCard,
                                     currentPlayerIndex: game.currentPlayerIndex,
+                                    myPosition: playerPosition,
                                     opponents: game.players
-                                        .filter(op => op.userId !== p.userId)
-                                        .map(op => ({
+                                        .filter((op: Player) => op.userId !== p.userId)
+                                        .map((op: Player) => ({
                                             id: op.id,
                                             username: op.username,
                                             handSize: op.hand.length,
@@ -468,16 +473,14 @@ const startServer = async (): Promise<void> => {
                                 });
                             }
                         });
-                        callback({success: true});
                     } else {
-                        callback({success: false, error: result.error});
+                        callback({success: false, error: result.error || 'Failed to play card'});
                     }
                 } catch (error: any) {
                     console.error('Error playing card:', error);
                     callback({success: false, error: error.message});
                 }
             });
-
             // Handle drawing a card
             socket.on('draw_card', (data: { gameId: string }, callback: (response: any) => void) => {
                 try {
@@ -498,10 +501,12 @@ const startServer = async (): Promise<void> => {
                         game.players.forEach(p => {
                             const playerSocket = p.socket;
                             if (playerSocket) {
+                                const playerPosition = game.players.findIndex(player => player.userId === p.userId);
                                 playerSocket.emit('game_state', {
                                     hand: p.hand,
                                     topCard: game.topCard,
                                     currentPlayerIndex: game.currentPlayerIndex,
+                                    myPosition: playerPosition,
                                     opponents: game.players
                                         .filter(op => op.userId !== p.userId)
                                         .map(op => ({

@@ -7,11 +7,12 @@ export class Rules {
         // A card is valid if:
         // 1. Colors match OR
         // 2. Values match OR
-        // 3. It's a Wild card
+        // 3. It's any type of Wild card
         return (
             playedCard.color === topCard.color ||
             playedCard.value === topCard.value ||
-            playedCard.type === 'Wild'
+            playedCard.type === 'Wild' ||
+            playedCard.type === 'Wild Draw Four'
         );
     }
 
