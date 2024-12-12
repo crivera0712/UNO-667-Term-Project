@@ -434,7 +434,6 @@ const startServer = async (): Promise<void> => {
                 }
             });
 
-            // Handle playing a card
             socket.on('play_card', (data: { gameId: string, cardIndex: number, selectedColor?: string }, callback: (response: any) => void) => {
                 try {
                     console.log('Play card request:', { gameId: data.gameId, userId: socket.data.userId, cardIndex: data.cardIndex, selectedColor: data.selectedColor });
@@ -443,6 +442,21 @@ const startServer = async (): Promise<void> => {
 
                     if (result.success && result.game) {
                         const game = result.game;
+
+                        // Check if game is finished
+                        if (game.status === 'finished' && game.winner) {
+                            // Emit game over event to all players
+                            io.to(`game:${data.gameId}`).emit('game_over', {
+                                winner: game.winner,
+                                players: game.players.map(p => ({
+                                    id: p.id,
+                                    username: p.username,
+                                    handSize: p.hand.length,
+                                    connected: p.connected
+                                }))
+                            });
+                        }
+
                         // Notify all players about the card being played
                         io.to(`game:${data.gameId}`).emit('card_played', {
                             playerId: socket.data.userId,
@@ -473,12 +487,13 @@ const startServer = async (): Promise<void> => {
                                 });
                             }
                         });
+                        callback({ success: true });
                     } else {
-                        callback({success: false, error: result.error || 'Failed to play card'});
+                        callback({ success: false, error: result.error || 'Failed to play card' });
                     }
                 } catch (error: any) {
                     console.error('Error playing card:', error);
-                    callback({success: false, error: error.message});
+                    callback({ success: false, error: error.message });
                 }
             });
             // Handle drawing a card
@@ -579,6 +594,31 @@ const startServer = async (): Promise<void> => {
                     callback({ success: true });
                 } catch (error: any) {
                     console.error('Error starting game:', error);
+                    callback({ success: false, error: error.message });
+                }
+            });
+
+            // Handle rematch requests
+            socket.on('request_rematch', (data: { gameId: string }, callback: (response: any) => void) => {
+                try {
+                    const game = gamesService.getGameById(data.gameId);
+                    if (!game) {
+                        return callback({ success: false, error: 'Game not found' });
+                    }
+
+                    // Create a new game with the same players
+                    const newGame = gamesService.createRematch(game);
+
+                    // Notify all players about the rematch
+                    io.to(`game:${game.id}`).emit('rematch_started', {
+                        oldGameId: game.id,
+                        newGameId: newGame.id,
+                        passcode: newGame.passcode
+                    });
+
+                    callback({ success: true, gameId: newGame.id });
+                } catch (error: any) {
+                    console.error('Error handling rematch:', error);
                     callback({ success: false, error: error.message });
                 }
             });

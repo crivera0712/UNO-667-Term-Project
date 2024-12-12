@@ -15,6 +15,10 @@ export interface Game {
     currentPlayerIndex: number;
     accumulatedDrawCards: number;
     mustPlayDrawCard: boolean;
+    winner?: {
+        userId?: number;
+        username: string;
+    };
 }
 
 export interface Player {
@@ -240,11 +244,21 @@ class GamesService {
             effect.skipTurn
         );
 
+        // Check for win condition
+        if (player.hand.length === 0) {
+            game.status = 'finished';
+            game.winner = {
+                userId: player.userId,
+                username: player.username
+            };
+        }
+
         // Update game state in storage
         this.games.set(game.passcode, game);
         this.games.set(game.id, game);
         return { success: true, game };
     }
+
     drawCard(gameId: string, playerId: string): { success: boolean; error?: string; game?: Game; card?: Card } {
         const game = this.getGameById(gameId);
         if (!game) return { success: false, error: 'Game not found' };
@@ -329,6 +343,43 @@ class GamesService {
             this.games.set(game.passcode, game);
             this.games.set(game.id, game);
         }
+    }
+
+    createRematch(oldGame: Game): Game {
+        // Generate a new passcode
+        const newPasscode = Math.floor(1000 + Math.random() * 9000).toString();
+
+        // Create a new game with the same players but reset hands
+        const newGame: Game = {
+            id: Math.random().toString(36).substring(2, 15),
+            passcode: newPasscode,
+            players: oldGame.players.map(p => ({
+                ...p,
+                hand: [] // Reset hands
+            })),
+            status: 'waiting',
+            createdAt: new Date(),
+            deck: new Deck(), // New shuffled deck
+            topCard: null,
+            isReversed: false,
+            currentPlayerIndex: 0,
+            accumulatedDrawCards: 0,
+            mustPlayDrawCard: false
+        };
+
+        // Deal initial cards to all players
+        newGame.players.forEach(player => {
+            player.hand = newGame.deck.drawCards(7);
+        });
+
+        // Set initial top card
+        newGame.topCard = newGame.deck.drawCard();
+
+        // Store the new game
+        this.games.set(newPasscode, newGame);
+        this.games.set(newGame.id, newGame);
+
+        return newGame;
     }
 }
 
