@@ -178,19 +178,79 @@ const startServer = async (): Promise<void> => {
         });
 
         io.on('connection', (socket: Socket) => {
-
             // Handle joining game room
             socket.on('join_game_room', (data: { gameId: string }, callback: (response: any) => void) => {
                 console.log('Socket joining game room:', data.gameId);
                 socket.join(`game:${data.gameId}`);
+
+                // Get the game and player's hand
+                const game = gamesService.getGameById(data.gameId);
+                console.log('Found game:', game ? {
+                    id: game.id,
+                    players: game.players.map(p => ({
+                        id: p.id,
+                        username: p.username,
+                        handSize: p.hand.length
+                    }))
+                } : 'null');
+
+                if (game) {
+                    const player = game.players.find(p => p.userId === socket.data.userId);
+                    console.log('Found player by userId:', socket.data.userId, player ? {
+                        id: player.id,
+                        username: player.username,
+                        handSize: player.hand.length,
+                        hand: player.hand
+                    } : 'null');
+
+                    if (player) {
+                        // Send the player their hand and the current game state
+                        const gameState = {
+                            hand: player.hand,
+                            topCard: game.topCard,
+                            currentPlayerIndex: game.currentPlayerIndex,
+                            opponents: game.players
+                                .filter(p => p.userId !== socket.data.userId)
+                                .map(p => ({
+                                    id: p.id,
+                                    username: p.username,
+                                    handSize: p.hand.length,
+                                    connected: p.connected
+                                }))
+                        };
+                        console.log('Sending game state:', gameState);
+                        socket.emit('game_state', gameState);
+                    }
+                }
+
                 callback({ success: true });
             });
-
             // Debug socket session
             const session = (socket.request as any).session;
             console.log('Socket session on connect:', session);
             console.log('A user connected');
 
+            // Send initial games list to newly connected client
+            const initialGames = gamesService.getAllGames().map(g => ({
+                id: g.id,
+                passcode: g.passcode,
+                status: g.status,
+                players: g.players.map(p => ({ id: p.id, username: p.username, connected: p.connected }))
+            }));
+            console.log('Sending initial games list to new connection:', initialGames);
+            socket.emit('games_update', initialGames);
+
+            // Handle explicit games list request
+            socket.on('get_games', (_data: any, callback: (response: any) => void) => {
+                const games = gamesService.getAllGames().map(g => ({
+                    id: g.id,
+                    passcode: g.passcode,
+                    status: g.status,
+                    players: g.players.map(p => ({ id: p.id, username: p.username, connected: p.connected }))
+                }));
+                console.log('Sending games list in response to request:', games);
+                callback({ games });
+            });
             // Handle game creation
             socket.on('create_game', async (data: { passcode: string }, callback: (response: any) => void) => {
                 try {
@@ -203,9 +263,9 @@ const startServer = async (): Promise<void> => {
                         userId: socket.data.userId,
                         username: socket.data.username || 'Anonymous',
                         socket: socket,
-                        connected: true
+                        connected: true,
+                        hand: []  // Initialize empty hand
                     };
-                    console.log('Player data:', player);
 
                     const game = gamesService.createGame(data.passcode, player);
                     console.log('Game created:', {
@@ -216,29 +276,50 @@ const startServer = async (): Promise<void> => {
                         topCard: game.topCard,
                         isReversed: game.isReversed
                     });
-
                     socket.join(`game:${game.id}`);
 
-                    socket.emit('game_created', JSON.parse(JSON.stringify({
+                    // Send initial game state to the creator
+                    const creator = game.players[0];
+                    socket.emit('game_state', {
+                        hand: creator.hand,
+                        topCard: game.topCard,
+                        currentPlayerIndex: game.currentPlayerIndex,
+                        opponents: game.players
+                            .filter(p => p.userId !== socket.data.userId)
+                            .map(p => ({
+                                id: p.id,
+                                username: p.username,
+                                handSize: p.hand.length,
+                                connected: p.connected
+                            }))
+                    });
+
+                    // Notify others about game creation
+                    socket.emit('game_created', {
                         id: game.id,
                         passcode: game.passcode,
                         players: game.players.map(player => ({
                             id: player.id,
                             username: player.username,
-                            connected: player.connected
+                            connected: player.connected,
+                            handSize: player.hand.length
                         })),
                         status: game.status,
                         topCard: game.topCard ? { color: game.topCard.color, value: game.topCard.value } : null,
                         isReversed: game.isReversed
-                    })));
-
-                    io.emit('games_update', gamesService.getAllGames().map(g => ({
+                    });
+                    const gamesList = gamesService.getAllGames().map(g => ({
                         id: g.id,
                         passcode: g.passcode,
                         status: g.status,
-                        players: g.players.map(p => ({ id: p.id, username: p.username, connected: p.connected }))
-                    })));
-
+                        players: g.players.map(p => ({
+                            id: p.id,
+                            username: p.username,
+                            connected: p.connected
+                        }))
+                    }));
+                    console.log('Broadcasting updated games list:', gamesList);
+                    io.emit('games_update', gamesList);
                     callback({ success: true, gameId: game.id });
                 } catch (error: any) {
                     console.error('Error creating game:', error);
@@ -246,6 +327,7 @@ const startServer = async (): Promise<void> => {
                 }
             });
 
+            // Handle joining game
             socket.on('join_game', async (data: { passcode: string }, callback: (response: any) => void) => {
                 try {
                     console.log('Joining game with passcode:', data.passcode);
@@ -254,31 +336,67 @@ const startServer = async (): Promise<void> => {
                         userId: socket.data.userId,
                         username: socket.data.username || 'Anonymous',
                         socket: socket,
-                        connected: true
+                        connected: true,
+                        hand: []  // Initialize empty hand
                     };
-                    console.log('Player data:', player);
 
                     const game = gamesService.joinGame(data.passcode, player);
                     console.log('Player joined game:', {
                         id: game.id,
                         passcode: game.passcode,
-                        players: game.players.map(p => ({ id: p.id, username: p.username, connected: p.connected })),
+                        players: game.players.map(p => ({
+                            id: p.id,
+                            username: p.username,
+                            connected: p.connected,
+                            handSize: p.hand.length
+                        })),
                         status: game.status
                     });
 
                     socket.join(`game:${game.id}`);
 
+                    // Find the joined player to get their hand
+                    const joinedPlayer = game.players.find(p => p.userId === socket.data.userId);
+                    if (joinedPlayer) {
+                        // Send the initial game state to the joined player
+                        socket.emit('game_state', {
+                            hand: joinedPlayer.hand,
+                            topCard: game.topCard,
+                            currentPlayerIndex: game.currentPlayerIndex,
+                            opponents: game.players
+                                .filter(p => p.userId !== socket.data.userId)
+                                .map(p => ({
+                                    id: p.id,
+                                    username: p.username,
+                                    handSize: p.hand.length,
+                                    connected: p.connected
+                                }))
+                        });
+                    }
+
+                    // Notify other players about the new player
                     io.to(`game:${game.id}`).emit('player_joined', {
                         playerId: player.id,
                         username: player.username,
-                        players: game.players.map(p => ({ id: p.id, username: p.username, connected: p.connected }))
+                        players: game.players.map(p => ({
+                            id: p.id,
+                            username: p.username,
+                            connected: p.connected,
+                            handSize: p.hand.length
+                        }))
                     });
 
+                    // Update the games list for everyone
                     io.emit('games_update', gamesService.getAllGames().map(g => ({
                         id: g.id,
                         passcode: g.passcode,
                         status: g.status,
-                        players: g.players.map(p => ({ id: p.id, username: p.username, connected: p.connected }))
+                        players: g.players.map(p => ({
+                            id: p.id,
+                            username: p.username,
+                            connected: p.connected,
+                            handSize: p.hand.length
+                        }))
                     })));
 
                     callback({ success: true, gameId: game.id });
@@ -288,40 +406,6 @@ const startServer = async (): Promise<void> => {
                 }
             });
 
-            // Handle getting game players
-            socket.on('get_game_players', (data: { gameId: string }, callback: (response: any) => void) => {
-                console.log('get_game_players request:', data);
-                try {
-                    const game = gamesService.getGameById(data.gameId);
-                    console.log('Found game:', game);
-                    if (game) {
-                        const players = game.players.map(p => ({
-                            id: p.id,
-                            username: p.username,
-                            connected: p.connected !== false,
-                            isReady: false
-                        }));
-                        console.log('Sending players:', players);
-                        callback({ players });
-                    } else {
-                        console.log('Game not found');
-                        callback({ players: [] });
-                    }
-                } catch (error) {
-                    console.error('Error getting game players:', error);
-                    callback({ error: 'Failed to get players' });
-                }
-            });
-
-            // Handle games list request
-            // Handle games list request
-            socket.on('get_games', (_data: any, callback: (response: any) => void) => {
-                const games = gamesService.getAllGames().map(game => ({
-                    ...game,
-                    players: game.players.map(p => ({ id: p.id, username: p.username }))
-                }));
-                callback({ games });
-            });
             // Handle game chat
             socket.on('game_chat', (data: { gameId: string; message: string }) => {
                 try {
@@ -373,6 +457,90 @@ const startServer = async (): Promise<void> => {
                 }
             });
 
+            // Handle playing a card
+            socket.on('play_card', (data: { gameId: string, cardIndex: number }, callback: (response: any) => void) => {
+                try {
+                    const result = gamesService.playCard(data.gameId, socket.data.userId.toString(), data.cardIndex);
+                    if (result.success) {
+                        const game = gamesService.getGameById(data.gameId);
+                        if (game) {
+                            // Notify all players about the card being played
+                            io.to(`game:${data.gameId}`).emit('card_played', {
+                                playerId: socket.data.userId,
+                                username: socket.data.username,
+                                topCard: game.topCard,
+                                currentPlayerIndex: game.currentPlayerIndex
+                            });
+
+                            // Send updated game state to all players
+                            game.players.forEach(p => {
+                                const playerSocket = p.socket;
+                                if (playerSocket) {
+                                    playerSocket.emit('game_state', {
+                                        hand: p.hand,
+                                        topCard: game.topCard,
+                                        currentPlayerIndex: game.currentPlayerIndex,
+                                        opponents: game.players
+                                            .filter(op => op.userId !== p.userId)
+                                            .map(op => ({
+                                                id: op.id,
+                                                username: op.username,
+                                                handSize: op.hand.length,
+                                                connected: op.connected
+                                            }))
+                                    });
+                                }
+                            });
+                        }
+                        callback({ success: true });
+                    } else {
+                        callback({ success: false, error: result.error });
+                    }
+                } catch (error: any) {
+                    console.error('Error playing card:', error);
+                    callback({ success: false, error: error.message });
+                }
+            });
+
+            // Handle drawing a card
+            socket.on('draw_card', (data: { gameId: string }, callback: (response: any) => void) => {
+                try {
+                    const result = gamesService.drawCard(data.gameId, socket.data.userId.toString());
+                    if (result.success) {
+                        // Send the drawn card only to the player who drew it
+                        callback({ success: true, card: result.card });
+
+                        const game = gamesService.getGameById(data.gameId);
+                        if (game) {
+                            // Send updated game state to all players
+                            game.players.forEach(p => {
+                                const playerSocket = p.socket;
+                                if (playerSocket) {
+                                    playerSocket.emit('game_state', {
+                                        hand: p.hand,
+                                        topCard: game.topCard,
+                                        currentPlayerIndex: game.currentPlayerIndex,
+                                        opponents: game.players
+                                            .filter(op => op.userId !== p.userId)
+                                            .map(op => ({
+                                                id: op.id,
+                                                username: op.username,
+                                                handSize: op.hand.length,
+                                                connected: op.connected
+                                            }))
+                                    });
+                                }
+                            });
+                        }
+                    } else {
+                        callback({ success: false, error: result.error });
+                    }
+                } catch (error: any) {
+                    console.error('Error drawing card:', error);
+                    callback({ success: false, error: error.message });
+                }
+            });
+
             // Handle game start
             socket.on('start_game', (data: { gameId: string }, callback: (response: any) => void) => {
                 try {
@@ -381,12 +549,66 @@ const startServer = async (): Promise<void> => {
                         return callback({ error: 'Game not found' });
                     }
 
-                    // Update game status
+                    console.log('Starting game:', {
+                        id: game.id,
+                        players: game.players.map(p => ({
+                            id: p.id,
+                            username: p.username,
+                            connected: p.connected,
+                            handSize: p.hand.length
+                        }))
+                    });
+
+                    // Update game status and ensure all players are marked as connected
                     game.status = 'playing';
+                    game.players.forEach(player => {
+                        if (player.socket && player.socket.connected) {
+                            player.connected = true;
+                        }
+                    });
+
+                    // Update game state in service
+                    gamesService.updateGame(game);
+
+                    // Get fresh game state after update
+                    const updatedGame = gamesService.getGameById(data.gameId);
+                    if (!updatedGame) {
+                        throw new Error('Game state lost after update');
+                    }
+
+                    console.log('Game started with state:', {
+                        id: updatedGame.id,
+                        status: updatedGame.status,
+                        players: updatedGame.players.map(p => ({
+                            id: p.id,
+                            username: p.username,
+                            connected: p.connected,
+                            handSize: p.hand.length
+                        }))
+                    });
+
+                    // Send updated game state to all players
+                    updatedGame.players.forEach(p => {
+                        if (p.socket && p.socket.connected) {
+                            p.socket.emit('game_state', {
+                                hand: p.hand,
+                                topCard: updatedGame.topCard,
+                                currentPlayerIndex: updatedGame.currentPlayerIndex,
+                                opponents: updatedGame.players
+                                    .filter(op => op.userId !== p.userId)
+                                    .map(op => ({
+                                        id: op.id,
+                                        username: op.username,
+                                        handSize: op.hand.length,
+                                        connected: op.connected
+                                    }))
+                            });
+                        }
+                    });
 
                     // Notify all players in the game room
-                    io.to(`game:${game.id}`).emit('game_started', {
-                        gameId: game.id,
+                    io.to(`game:${updatedGame.id}`).emit('game_started', {
+                        gameId: updatedGame.id,
                         status: 'playing'
                     });
 
@@ -396,20 +618,52 @@ const startServer = async (): Promise<void> => {
                     callback({ error: error.message });
                 }
             });
+            socket.on('leave_game', (data: { gameId: string }, callback?: (response: any) => void) => {
+                try {
+                    console.log('Player leaving game:', {
+                        gameId: data.gameId,
+                        userId: socket.data.userId,
+                        username: socket.data.username
+                    });
 
-            // Handle leaving game
-            socket.on('leave_game', (data: { gameId: string }) => {
-                const wasRemoved = gamesService.removePlayerFromGame(data.gameId, socket.id);
-                if (wasRemoved) {
-                    socket.leave(`game:${data.gameId}`);
-                    const game = gamesService.getGameById(data.gameId);
-                    if (game) {
-                        io.to(`game:${data.gameId}`).emit('player_left', {
-                            playerId: socket.id,
-                            username: socket.data.username,
-                            players: gamesService.getGamePlayers(data.gameId)
-                        });
-                        io.emit('games_update', gamesService.getAllGames());
+                    const wasRemoved = gamesService.removePlayerFromGame(data.gameId, socket.data.userId.toString());
+                    if (wasRemoved) {
+                        socket.leave(`game:${data.gameId}`);
+                        const game = gamesService.getGameById(data.gameId);
+                        if (game) {
+                            // Notify remaining players
+                            io.to(`game:${data.gameId}`).emit('player_left', {
+                                playerId: socket.data.userId,
+                                username: socket.data.username,
+                                players: game.players.map(p => ({
+                                    id: p.id,
+                                    username: p.username,
+                                    connected: p.connected,
+                                    handSize: p.hand.length
+                                }))
+                            });
+
+                            // Update games list for everyone
+                            io.emit('games_update', gamesService.getAllGames().map(g => ({
+                                id: g.id,
+                                passcode: g.passcode,
+                                status: g.status,
+                                players: g.players.map(p => ({
+                                    id: p.id,
+                                    username: p.username,
+                                    connected: p.connected,
+                                    handSize: p.hand.length
+                                }))
+                            })));
+                        }
+                    }
+                    if (callback) {
+                        callback({ success: true });
+                    }
+                } catch (error: any) {
+                    console.error('Error leaving game:', error);
+                    if (callback) {
+                        callback({ success: false, error: error.message });
                     }
                 }
             });
@@ -417,20 +671,20 @@ const startServer = async (): Promise<void> => {
             // Handle disconnection
             socket.on('disconnect', () => {
                 console.log('A user disconnected');
-                // Mark player as disconnected but don't remove immediately
+                // Mark player as disconnected in all games they're in
                 const games = gamesService.getAllGames();
                 games.forEach(game => {
-                    const player = game.players.find(p => p.id === socket.id);
+                    const player = game.players.find(p => p.userId === socket.data.userId);
                     if (player) {
                         player.connected = false;
                         io.to(`game:${game.id}`).emit('player_left', {
-                            playerId: socket.id,
+                            playerId: socket.data.userId,
                             username: socket.data.username,
                             players: game.players.map(p => ({
                                 id: p.id,
                                 username: p.username,
-                                connected: p.connected !== false,
-                                isReady: false
+                                connected: p.connected,
+                                handSize: p.hand.length
                             }))
                         });
                     }

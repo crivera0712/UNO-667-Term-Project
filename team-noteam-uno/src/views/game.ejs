@@ -43,7 +43,7 @@
         <div class="flex-1 flex justify-center items-center gap-8">
             <!-- Draw Pile -->
             <div class="relative">
-                <div class="w-32 h-48 bg-red-600 rounded-xl border-4 border-white/20 shadow-xl flex items-center justify-center transform hover:scale-105 transition-transform cursor-pointer">
+                <div class="draw-pile w-32 h-48 bg-red-600 rounded-xl border-4 border-white/20 shadow-xl flex items-center justify-center transform hover:scale-105 transition-transform cursor-pointer">
                     <span class="text-4xl font-bold text-white">UNO</span>
                 </div>
                 <div class="absolute -top-2 -right-2">
@@ -118,6 +118,15 @@
         const pathParts = window.location.pathname.split('/');
         const gameId = pathParts[pathParts.length - 1];
 
+        // Define colorMap at the top level so it's available everywhere
+        const colorMap = {
+            Red: 'bg-red-500',
+            Blue: 'bg-blue-500',
+            Green: 'bg-green-500',
+            Yellow: 'bg-yellow-500',
+            Wild: 'bg-gray-500'
+        };
+
         if (!gameId) {
             console.error('No game ID found in URL');
             window.location.href = '/games';
@@ -126,40 +135,50 @@
             // Set game ID in header
             document.getElementById('gameId').textContent = gameId;
         }
-        // Example cards for testing
-        const playerCards = [
-            { color: 'red', value: '7' },
-            { color: 'blue', value: '4' },
-            { color: 'green', value: 'Skip' },
-            { color: 'yellow', value: 'Reverse' },
-        ];
+        // Card playing functionality
+        // Card playing functionality
+        function onCardClick(cardIndex) {
+            socket.emit('play_card', { gameId, cardIndex }, (response) => {
+                if (!response.success) {
+                    console.error('Failed to play card:', response.error);
+                    alert(response.error); // Show error to user
+                }
+            });
+        }
 
-        function createCard(card) {
-            const colorMap = {
-                red: 'bg-red-500',
-                blue: 'bg-blue-500',
-                green: 'bg-green-500',
-                yellow: 'bg-yellow-500'
-            };
+        // Handle drawing a card
+        document.querySelector('.draw-pile').addEventListener('click', () => {
+            socket.emit('draw_card', { gameId }, (response) => {
+                if (response.success && response.card) {
+                    console.log('Drew card:', response.card);
+                } else {
+                    console.error('Failed to draw card:', response.error);
+                    alert(response.error); // Show error to user
+                }
+            });
+        });
 
+        function createCard(card, index) {
+            console.log('Creating card element for:', card);
+            if (!card || !card.color || !colorMap[card.color]) {
+                console.error('Invalid card data:', card);
+                return null;
+            }
             const cardElement = document.createElement('div');
             cardElement.className = `w-24 h-36 ${colorMap[card.color]} rounded-xl border-4 border-white/20 shadow-xl flex items-center justify-center transform hover:scale-110 transition-transform cursor-pointer`;
             cardElement.innerHTML = `<span class="text-3xl font-bold text-white">${card.value}</span>`;
-
+            cardElement.addEventListener('click', () => onCardClick(index));
             return cardElement;
         }
-
-        // Initialize player's hand
+        // Initialize player's hand - we'll get this from the server
         const playerHand = document.getElementById('playerHand');
-        playerCards.forEach(card => {
-            playerHand.appendChild(createCard(card));
-        });
-
         // Handle leaving game
         document.getElementById('leaveGame').addEventListener('click', () => {
             if (confirm('Are you sure you want to leave the game?')) {
-                socket.emit('leave_game', { gameId }, () => {
-                    window.location.href = '/games';
+                socket.emit('leave_game', { gameId }, (response) => {
+                    if (response && response.success) {
+                        window.location.href = '/games';
+                    }
                 });
             }
         });
@@ -215,10 +234,9 @@
             leftOpponents.innerHTML = '';
             topOpponents.innerHTML = '';
             rightOpponents.innerHTML = '';
-
             // Distribute opponents around the table
             opponents.forEach((opponent, index) => {
-                const opponentElement = createOpponentElement(opponent, opponent.cardCount || 7);
+                const opponentElement = createOpponentElement(opponent, opponent.handSize);
 
                 if (opponents.length <= 3) {
                     // All opponents at the top
@@ -236,16 +254,30 @@
             });
         }
 
-        // Example opponents for testing
-        const testOpponents = [
-            { username: 'Player 1', cardCount: 7, connected: true, status: 'Their turn' },
-            { username: 'Player 2', cardCount: 4, connected: true },
-            { username: 'Player 3', cardCount: 1, connected: true, status: 'UNO!' },
-            { username: 'Player 4', cardCount: 5, connected: false }
-        ];
+        // Function to update turn indicator
+        function updateTurnIndicator(currentPlayerIndex, isMyTurn) {
+            const opponents = document.querySelectorAll('.opponent');
+            opponents.forEach((opponent, index) => {
+                const statusSpan = opponent.querySelector('.status');
+                if (statusSpan) {
+                    if (index === currentPlayerIndex) {
+                        statusSpan.textContent = 'Their turn';
+                        statusSpan.classList.add('text-green-400');
+                    } else {
+                        statusSpan.textContent = 'Waiting...';
+                        statusSpan.classList.remove('text-green-400');
+                    }
+                }
+            });
 
-        // Initialize with test opponents
-        updateOpponents(testOpponents);
+            // Update player's turn indicator
+            const playerHandContainer = document.getElementById('playerHand');
+            if (isMyTurn) {
+                playerHandContainer.classList.add('border-2', 'border-green-500', 'rounded-xl', 'p-4');
+            } else {
+                playerHandContainer.classList.remove('border-2', 'border-green-500', 'rounded-xl', 'p-4');
+            }
+        }
 
         // Socket event listener for opponent updates
         socket.on('game_state_update', (data) => {
@@ -317,6 +349,92 @@
         socket.emit('join_game_room', { gameId }, (response) => {
             if (!response.success) {
                 console.error('Failed to join game room');
+            }
+        });
+
+        // Listen for game state updates
+        socket.on('game_state', (data) => {
+            console.log('Received game state:', JSON.stringify(data, null, 2));
+
+            try {
+                // Update player's hand
+                if (data.hand && Array.isArray(data.hand)) {
+                    console.log('Updating hand with:', JSON.stringify(data.hand, null, 2));
+                    playerHand.innerHTML = '';
+                    data.hand.forEach((card, index) => {
+                        console.log('Processing card:', JSON.stringify(card, null, 2));
+                        if (!card || typeof card !== 'object') {
+                            console.error('Invalid card object:', card);
+                            return;
+                        }
+                        const cardElement = createCard(card, index);
+                        if (cardElement) {
+                            console.log('Created card element:', cardElement.outerHTML);
+                            playerHand.appendChild(cardElement);
+                        } else {
+                            console.error('Failed to create card element for:', card);
+                        }
+                    });
+                } else {
+                    console.warn('No valid hand data received:', data.hand);
+                }
+
+                // Update top card
+                if (data.topCard) {
+                    console.log('Updating top card:', JSON.stringify(data.topCard, null, 2));
+                    const currentCard = document.getElementById('currentCard');
+                    if (currentCard && data.topCard.color && colorMap[data.topCard.color]) {
+                        currentCard.className = `w-32 h-48 ${colorMap[data.topCard.color]} rounded-xl border-4 border-white/20 shadow-xl flex items-center justify-center`;
+                        currentCard.innerHTML = `<span class="text-4xl font-bold text-white">${data.topCard.value}</span>`;
+                    } else {
+                        console.error('Invalid top card data:', data.topCard);
+                    }
+                }
+
+                // Update opponents
+                if (data.opponents && Array.isArray(data.opponents)) {
+                    console.log('Updating opponents:', JSON.stringify(data.opponents, null, 2));
+                    updateOpponents(data.opponents);
+                }
+
+                // Update turn indicator
+                if (data.currentPlayerIndex !== undefined && data.opponents) {
+                    const myPosition = data.opponents.length; // I'm after all opponents
+                    const isMyTurn = data.currentPlayerIndex === myPosition;
+                    updateTurnIndicator(data.currentPlayerIndex, isMyTurn);
+                }
+            } catch (error) {
+                console.error('Error processing game state:', error);
+            }
+        });
+        socket.on('card_played', (data) => {
+            console.log('Card played:', data);
+            // Update top card
+            if (data.topCard) {
+                const currentCard = document.getElementById('currentCard');
+                currentCard.className = `w-32 h-48 ${colorMap[data.topCard.color]} rounded-xl border-4 border-white/20 shadow-xl flex items-center justify-center`;
+                currentCard.innerHTML = `<span class="text-4xl font-bold text-white">${data.topCard.value}</span>`;
+            }
+            // Update turn indicator
+            if (data.currentPlayerIndex !== undefined) {
+                const myPosition = data.opponents.length; // I'm after all opponents
+                const isMyTurn = data.currentPlayerIndex === myPosition;
+                updateTurnIndicator(data.currentPlayerIndex, isMyTurn);
+            }
+        });
+
+        // Listen for card drawn events
+        socket.on('card_drawn', (data) => {
+            console.log('Card drawn by:', data.username);
+            // Update opponent's hand size if needed
+            if (data.opponents) {
+                updateOpponents(data.opponents);
+            }
+            // Update turn indicator
+            if (data.currentPlayerIndex !== undefined) {
+                const myPosition = data.opponents.length; // I'm after all opponents
+                const isMyTurn = data.currentPlayerIndex === myPosition;
+                updateTurnIndicator(data.currentPlayerIndex, isMyTurn);
             }
         });
     </script>
